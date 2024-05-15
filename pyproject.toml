@@ -3,9 +3,9 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "AGISwarm.python-template"
+name = "AGISwarm.llm_instruct_ms"
 dynamic = ["version"]
-description = "Python template project"
+description = "LLM Instruct Microservice project"
 readme = "README.md"
 
 requires-python = ">=3.11"
@@ -29,5 +29,5 @@ version = { file = "VERSION" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
+[tool.setuptools.package-data] 
 python_template = ["py.typed"]
