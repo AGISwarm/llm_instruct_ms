@@ -70,6 +70,7 @@ class HFEngine:  # pylint: disable=invalid-name
 
     async def generate(
         self,
+        request_id: str,
         messages: list[dict],
         max_new_tokens: int = 100,
         reply_prefix: str = "",
@@ -100,3 +101,8 @@ class HFEngine:  # pylint: disable=invalid-name
         thread.start()
         for new_text in self.streamer:
             yield new_text
+
+    async def abort(self, request_id: str):
+        """Abort generation"""
+        self.streamer.abort()
+        return True

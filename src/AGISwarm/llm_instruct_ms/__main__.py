@@ -1,6 +1,7 @@
 """Main module for the LLM instruct microservice"""
 
 import asyncio
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Literal
 
@@ -11,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from pydantic_settings import BaseSettings
 
-from .llm_engines import VLLMEngine, HFEngine
+from .llm_engines import HFEngine, VLLMEngine
 
 
 class ModelSettings(BaseSettings):
@@ -44,6 +45,7 @@ class NetworkingSettings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     websocket_url: str | None = "wss://8fb7-188-88-138-217.ngrok-free.app/ws"
+    abort_url: str | None = "https://8fb7-188-88-138-217.ngrok-free.app/abort"
 
 
 class Settings(ModelSettings, DefaultSamplingSettings, NetworkingSettings, GUISettings):
@@ -107,15 +109,19 @@ class AppFactory:
                 while True:
                     sampling_dict = await websocket.receive_json()
                     if sampling_dict["system_prompt"] != "":
-                        messages.append({
-                            "role": "system",
-                            "content": sampling_dict["system_prompt"],
-                        })
+                        messages.append(
+                            {
+                                "role": "system",
+                                "content": sampling_dict["system_prompt"],
+                            }
+                        )
                     messages.append(
                         {"role": "user", "content": sampling_dict["prompt"]}
                     )
                     reply = ""
+                    request_id = str(uuid.uuid4())
                     async for text in self.llm.generate(
+                        request_id,
                         messages,
                         max_new_tokens=sampling_dict["max_new_tokens"],
                         reply_prefix=sampling_dict["reply_prefix"],
@@ -126,14 +132,35 @@ class AppFactory:
                         presence_penalty=sampling_dict["presence_penalty"],
                     ):
                         reply += text
-                        await websocket.send_text(text)
+                        await websocket.send_json(
+                            {
+                                "text": text,
+                                "request_id": request_id,
+                            }
+                        )
                         await asyncio.sleep(0.001)
                     messages.append({"role": "assistant", "content": reply})
-                    await websocket.send_text("<end_of_response>")
+                    await websocket.send_json(
+                        {
+                            "text": "<end_of_response>",
+                            "request_id": request_id,
+                        }
+                    )
             except WebSocketDisconnect:
                 print("Client disconnected", flush=True)
             finally:
                 await websocket.close()
+
+        class AbortRequest(BaseSettings):
+            """Abort request"""
+
+            request_id: str
+
+        @router.post("/abort")
+        async def abort(request: AbortRequest):
+            """Abort generation"""
+            await self.llm.abort(request.request_id)
+            return True
 
         return router
 

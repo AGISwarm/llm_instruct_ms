@@ -15,7 +15,7 @@
             <div id="chat-output" class="chat-output"></div>
             <div class="input-container">
                 <textarea id="prompt" class="form-control" placeholder="Enter your message" rows="1"></textarea>
-                <button onclick="sendMessage()" class="btn btn-primary" id="send-btn">Send</button>
+                <button onclick="sendButtonClick()" class="btn btn-primary" id="send-btn">Send</button>
             </div>
             <div class="input-container">
                 <textarea id="reply_prefix" class="form-control" placeholder="Enter reply prefix" value=""></textarea>
@@ -72,6 +72,7 @@
         const DEFAULT_PRESENCE_PENALTY = "0.0";
         const DEFAULT_SYSTEM_PROMPT = "";
         const WEBSOCKET_URL = "wss://8fb7-188-88-138-217.ngrok-free.app/ws";
+        const ABORT_URL = "https://8fb7-188-88-138-217.ngrok-free.app/abort";
     </script>
     <script src="/static/scripts.js"></script>
 </body>

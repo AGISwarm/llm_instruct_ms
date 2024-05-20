@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import uuid
 
 import torch
 from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams
@@ -29,6 +28,7 @@ class VLLMEngine:
 
     async def generate(  # type: ignore
         self,
+        request_id: str,
         messages: list[dict],
         max_new_tokens: int = 100,
         reply_prefix: str | None = None,
@@ -58,10 +58,14 @@ class VLLMEngine:
             yield reply_prefix
         current_len = 0
         async for output in self.model.generate(
-            prompt, sampling_params=sampling_params, request_id=uuid.uuid4()
+            prompt, sampling_params=sampling_params, request_id=request_id
         ):
             await asyncio.sleep(0.001)
             yield output.outputs[0].text[current_len:]
             current_len = len(output.outputs[0].text)
             if output.finished:
                 break
+
+    async def abort(self, request_id: str):
+        """Abort generation"""
+        await self.model.abort(request_id)

@@ -14,14 +14,28 @@ function resetForm() {
     document.getElementById('system_prompt').value = DEFAULT_SYSTEM_PROMPT;
 }
 let currentMessage = '';
+let currentRequestID = '';
+
 ws.onmessage = function (event) {
     // Send button is disabled until the response is received
-    const token = event.data;
+    const token = JSON.parse(event.data)["text"];
+    currentRequestID = JSON.parse(event.data)["request_id"];
     if (token == "<end_of_response>") {
         currentMessage = '';
+        
+        // Enable the send button
+        document.getElementById('send-btn').style.backgroundColor = "#363d46";
+        document.getElementById('send-btn').textContent = "Send";
         document.getElementById('send-btn').disabled = false;
         return;
     }
+    else {
+        // Disable the send button 
+        document.getElementById('send-btn').style.backgroundColor = "#808080";
+        document.getElementById('send-btn').textContent = "Abort";
+        document.getElementById('send-btn').disabled = false;
+    }
+
     currentMessage += token;
     const chatOutput = document.getElementById('chat-output');
     // Check if the bot message div already exists
@@ -46,7 +60,6 @@ ws.onclose = function (event) {
     console.log("WebSocket is closed now.");
 };
 function sendMessage() {
-    document.getElementById('send-btn').disabled = true;
     const prompt = document.getElementById('prompt').value;
     const max_new_tokens = document.getElementById('max_new_tokens').value;
     const reply_prefix = document.getElementById('reply_prefix').value;
@@ -88,10 +101,40 @@ function sendMessage() {
     document.getElementById('system_prompt').value = '';
     document.getElementById('reply_prefix').value = '';
 }
+
+function sendButtonClick() {
+    document.getElementById('send-btn').disabled = true;
+    if (document.getElementById('send-btn').textContent === "Send") {
+        sendMessage();
+    }
+    else if (document.getElementById('send-btn').textContent === "Abort") {
+        abortGeneration();
+    }
+}
+
+function abortGeneration() {
+    console.log(currentRequestID)
+    fetch(ABORT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({'request_id': currentRequestID})
+    })
+    .then(response => response.text())
+    .catch(error => console.error('Error aborting generation:', error));
+    // Enable the send button
+    document.getElementById('send-btn').style.backgroundColor = "#363d46";
+    document.getElementById('send-btn').textContent = "Send";
+    document.getElementById('send-btn').disabled = false;
+    console.log("Generation aborted.");
+}
+
 document.getElementById('prompt').addEventListener('keydown', function (event) {
     if (event.key === 'Enter' && !event.ctrlKey) {
         event.preventDefault();
-        sendMessage();
+        if (document.getElementById('send-btn').textContent === "Send") {
+            document.getElementById('send-btn').disabled = true;
+            sendMessage();
+        }
     } else if (event.key === 'Enter' && event.ctrlKey) {
         // Allow new line with Ctrl+Enter
         this.value += '\n';
