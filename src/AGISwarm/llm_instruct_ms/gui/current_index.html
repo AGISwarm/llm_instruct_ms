@@ -1,0 +1,79 @@
+<html>
+
+<head>
+    <title>LLM Instruct</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <!--./style.css -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <h1>LLM Instruct</h1>
+            <div id="chat-output" class="chat-output"></div>
+            <div class="input-container">
+                <textarea id="prompt" class="form-control" placeholder="Enter your message" rows="1"></textarea>
+                <button onclick="sendMessage()" class="btn btn-primary" id="send-btn">Send</button>
+            </div>
+            <div class="input-container">
+                <textarea id="reply_prefix" class="form-control" placeholder="Enter reply prefix" value=""></textarea>
+            </div>
+            <div class="input-container">
+                <textarea id="system_prompt" class="form-control" placeholder="Enter system prompt" value=></textarea>
+            </div>
+        </div>
+        <div class="config-container">
+            <div class="form-group">
+                <label for="max_new_tokens">Max tokens:</label>
+                <input type="number" id="max_new_tokens" class="form-control" placeholder="Enter max tokens"
+                    value="1000">
+            </div>
+            <div class="form-group">
+                <span for="temperature">Temperature:</span>
+                <input type="number" id="temperature" class="form-control" min="1e-9" max="1.0" step="0.1"
+                    value="0.6">
+
+            </div>
+            <div class="form-group">
+                <span for="top_p">Top P:</span>
+                <input type="number" id="top_p" class="form-control" min="1e-9" max="1.0" step="0.1"
+                    value="0.95">
+
+            </div>
+            <div class="form-group">
+                <span for="repetition_penalty">Repetition Penalty:</span>
+                <input type="number" id="repetition_penalty" class="form-control" min="1e-9" max="2.0" step="0.1"
+                    value="1.2">
+
+            </div>
+            <div class="form-group">
+                <span for="frequency_penalty">Frequency Penalty:</span>
+                <input type="number" id="frequency_penalty" class="form-control" min="-2.0" max="2.0" step="0.1"
+                    value="0.0">
+
+            </div>
+            <div class="form-group">
+                <span for="presence_penalty">Presence Penalty:</span>
+                <input type="number" id="presence_penalty" class="form-control" min="-2.0" max="2.0" step="0.1"
+                    value="0.0">
+
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">Reset</button>
+        </div>
+    </div>
+    <script>
+        const DEFAULT_MAX_NEW_TOKENS = "1000";
+        const DEFAULT_TEMPERATURE = "0.6";
+        const DEFAULT_TOP_P = "0.95";
+        const DEFAULT_REPETITION_PENALTY = "1.2";
+        const DEFAULT_FREQUENCY_PENALTY = "0.0";
+        const DEFAULT_PRESENCE_PENALTY = "0.0";
+        const DEFAULT_SYSTEM_PROMPT = "";
+        const WEBSOCKET_URL = "wss://8fb7-188-88-138-217.ngrok-free.app/ws";
+    </script>
+    <script src="/static/scripts.js"></script>
+</body>
+
+</html>
