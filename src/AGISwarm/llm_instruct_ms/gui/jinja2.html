@@ -6,12 +6,18 @@
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <!--./style.css -->
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+
 </head>
 
 <body>
     <div class="container">
         <div class="chat-container">
-            <h1>{{title}}</h1>
+            <div class="chat-header">
+                <h1 id="title">{{title}}</h1>
+                <button id="menu-toggle" class="btn btn-secondary menu-toggle"><i class="fas fa-bars"></i></button>
+            </div>
             <div id="chat-output" class="chat-output"></div>
             <div class="input-container">
                 <textarea id="prompt" class="form-control" placeholder="Enter your message" rows="1"></textarea>
@@ -21,10 +27,13 @@
                 <textarea id="reply_prefix" class="form-control" placeholder="Enter reply prefix" value=""></textarea>
             </div>
             <div class="input-container">
-                <textarea id="system_prompt" class="form-control" placeholder="Enter system prompt" value={{default_system_prompt}}></textarea>
+                <textarea id="system_prompt" class="form-control" placeholder="Enter system prompt"
+                    value={{default_system_prompt}}></textarea>
             </div>
         </div>
+        
         <div class="config-container">
+
             <div class="form-group">
                 <label for="max_new_tokens">Max tokens:</label>
                 <input type="number" id="max_new_tokens" class="form-control" placeholder="Enter max tokens"

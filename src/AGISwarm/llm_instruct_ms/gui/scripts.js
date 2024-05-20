@@ -22,7 +22,7 @@ ws.onmessage = function (event) {
     currentRequestID = JSON.parse(event.data)["request_id"];
     if (token == "<end_of_response>") {
         currentMessage = '';
-        
+
         // Enable the send button
         document.getElementById('send-btn').style.backgroundColor = "#363d46";
         document.getElementById('send-btn').textContent = "Send";
@@ -115,12 +115,12 @@ function sendButtonClick() {
 function abortGeneration() {
     console.log(currentRequestID)
     fetch(ABORT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({'request_id': currentRequestID})
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 'request_id': currentRequestID })
     })
-    .then(response => response.text())
-    .catch(error => console.error('Error aborting generation:', error));
+        .then(response => response.text())
+        .catch(error => console.error('Error aborting generation:', error));
     // Enable the send button
     document.getElementById('send-btn').style.backgroundColor = "#363d46";
     document.getElementById('send-btn').textContent = "Send";
@@ -138,5 +138,21 @@ document.getElementById('prompt').addEventListener('keydown', function (event) {
     } else if (event.key === 'Enter' && event.ctrlKey) {
         // Allow new line with Ctrl+Enter
         this.value += '\n';
+    }
+});
+
+const menuToggle = document.getElementById('menu-toggle');
+const configContainer = document.querySelector('.config-container');
+document.addEventListener('DOMContentLoaded', function () {
+
+    menuToggle.addEventListener('click', () => {
+        configContainer.classList.toggle('show');
+    });
+
+});
+document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!configContainer.contains(target) && !menuToggle.contains(target)) {
+        configContainer.classList.remove('show');
     }
 });

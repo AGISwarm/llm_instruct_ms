@@ -1,11 +1,15 @@
-body {
+body, html {
     font-family: Arial, sans-serif;
     margin: 20px;
     background-color: #121212;
     color: #ffffff;
+    overflow-x: hidden;
 }
 
-#prompt, #reply_prefix, #system_prompt {
+
+#prompt,
+#reply_prefix,
+#system_prompt {
     margin: 0;
 }
 
@@ -39,13 +43,13 @@ body {
 .form-group label {
     display: block;
     margin-bottom: 5px;
-    font-size: 14px;
+    font-size: 2vh;
 }
 
 .form-control {
     width: 100%;
     padding: 5px;
-    font-size: 14px;
+    font-size: 2vh;
     background-color: #2d2d2d;
     color: #ffffff;
     border: none;
@@ -53,7 +57,7 @@ body {
 
 .btn {
     padding: 5px 10px;
-    font-size: 14px;
+    font-size: 2vh;
 }
 
 .chat-output {
@@ -76,7 +80,7 @@ body {
     margin-bottom: 10px;
     border-radius: 3px;
     display: block;
-    max-width: 61.803398875%;
+    max-width: 96%;
     white-space: pre-wrap;
     /* Preserve whitespace and wrap as needed */
     word-wrap: break-word;
@@ -85,15 +89,18 @@ body {
     /* Ensure messages have a background color */
 }
 
-.user-message, .system-message {
+.user-message,
+.system-message {
     align-self: flex-start;
     background-color: #2d2d2d;
     text-align: left;
     margin-left: auto;
+    font-size: 1.7vh;
 }
 
 .system-message {
     background-color: #570b0b;
+    font-size: 1.7vh;
 }
 
 .bot-message {
@@ -102,18 +109,21 @@ body {
     color: #000000;
     text-align: left;
     margin-right: auto;
+    font-size: 1.7vh;
 }
 
 .input-container {
     display: flex;
     flex-grow: 1;
     align-items: center;
-    margin-bottom: 1%;
+    margin-bottom: 0.1vh;
+    font-size: 2vh;
+    height: 1vh;
 }
 
 .input-container>.form-control {
     background-color: #2d2d2d;
-    height: 10vh;
+    height: 1vh;
     overflow-y: auto;
     flex-grow: 1;
     color: #ffffff;
@@ -121,8 +131,8 @@ body {
 }
 
 .input-container>#send-btn {
-    margin-left: 10px;
-    height: 10vh;
+    margin-left: 0.5vh;
+    height: 4vh;
     background-color: #363d46;
     border-color: #363d46;
 }
@@ -135,6 +145,7 @@ body {
 output {
     color: #ffffff;
 }
+
 ::-webkit-scrollbar {
     width: 10px;
 }
@@ -150,4 +161,49 @@ output {
 
 ::-webkit-scrollbar-thumb:hover {
     background-color: #555;
+}
+
+@media (max-width: 991px) {
+    .config-container {
+        position: fixed;
+        top: 0;
+        right: -60vw;
+        width: 60vw;
+        height: 100%;
+        overflow-y: auto;
+        transition: right 0.3s ease-in-out;
+        z-index: 1000;
+        background-color: #1e1e1e;
+        font-size: 2vh; 
+    }
+
+    .config-container.show {
+        right: 0;
+    }
+}
+
+.menu-toggle {
+    display: none;
+    margin-left: 1%;
+    height: 5vh;
+    width: 5vh;
+    font-size: 3vh;
+}
+
+@media (max-width: 991px) {
+    .menu-toggle {
+        display: block;
+        margin-bottom: 20px;
+    }
+}
+
+.chat-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 2vh;
+}
+#title {
+    font-size: 3vh;
 }
