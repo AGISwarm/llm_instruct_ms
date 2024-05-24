@@ -1,4 +1,5 @@
-body, html {
+body,
+html {
     font-family: Arial, sans-serif;
     margin: 20px;
     background-color: #121212;
@@ -25,7 +26,13 @@ body, html {
     display: flex;
     flex-direction: column;
     margin-right: 20px;
-    max-width: 100%;
+    max-width: 70%;
+    width: 70%;
+}
+@media (max-width: 991px) {
+    .chat-container {
+        max-width: 100%;
+    }
 }
 
 .config-container {
@@ -79,8 +86,8 @@ body, html {
     padding: 10px;
     margin-bottom: 10px;
     border-radius: 3px;
-    display: block;
-    max-width: 96%;
+    display: inline-block;
+    /* max-width: 96%; */
     white-space: pre-wrap;
     /* Preserve whitespace and wrap as needed */
     word-wrap: break-word;
@@ -89,14 +96,20 @@ body, html {
     /* Ensure messages have a background color */
 }
 
+.message_container {
+    width: 100%;
+}
 .user-message,
 .system-message {
-    align-self: flex-start;
-    background-color: #2d2d2d;
-    text-align: left;
+    display: flex;
+    justify-content: flex-end;
+    align-self: flex-end;
     margin-left: auto;
+    background-color: #2d2d2d;
+    text-align: right;
     font-size: 1.7vh;
 }
+
 
 .system-message {
     background-color: #570b0b;
@@ -174,7 +187,7 @@ output {
         transition: right 0.3s ease-in-out;
         z-index: 1000;
         background-color: #1e1e1e;
-        font-size: 2vh; 
+        font-size: 2vh;
     }
 
     .config-container.show {
@@ -197,13 +210,14 @@ output {
     }
 }
 
-.chat-header{
+.chat-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
     font-size: 2vh;
 }
+
 #title {
     font-size: 3vh;
 }

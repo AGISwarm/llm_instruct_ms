@@ -1,12 +1,21 @@
 """ LLM Instruct Model Inference """
 
+import asyncio
+from functools import partial
 from threading import Thread
 from typing import cast
 
 import torch
 import transformers
+from pydantic import Field
 
-from .utils import prepare_prompt
+from .utils import (
+    EngineProtocol,
+    SamplingParams,
+    abort_generation_request,
+    generation_request_queued_func,
+    prepare_prompt,
+)
 
 SUPPORTED_MODELS = [
     "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -40,7 +49,13 @@ BNB_CONFIG = transformers.BitsAndBytesConfig(
 )
 
 
-class HFEngine:  # pylint: disable=invalid-name
+class HFSamplingParams(SamplingParams):
+    """HF sampling settings"""
+
+    repetition_penalty: float = Field(default=1.2, description="Repetition penalty")
+
+
+class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-name
     """LLM Instruct Model Inference"""
 
     def __init__(
@@ -64,45 +79,37 @@ class HFEngine:  # pylint: disable=invalid-name
                 },
             ),
         )
-        self.streamer = transformers.TextIteratorStreamer(
-            self.tokenizer, skip_prompt=True, skip_special_tokens=True  # type: ignore
-        )
+        self.current_requests = {}
 
+    @partial(generation_request_queued_func, wait_time=0.001)
     async def generate(
         self,
         request_id: str,
         messages: list[dict],
-        max_new_tokens: int = 100,
         reply_prefix: str = "",
-        temperature: float = 0.5,
-        top_p: float = 0.9,
-        repetition_penalty: float = 1.0,
-        presence_penalty: float = 0.0,
-        frequency_penalty: float = 0.0,
+        sampling_params: HFSamplingParams = HFSamplingParams(),
     ):
         """Generate text from prompt"""
+        streamer = transformers.TextIteratorStreamer(
+            self.tokenizer, skip_prompt=True, skip_special_tokens=True  # type: ignore
+        )
         prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)
-        print(f"Prompt: {prompt}")
         thread = Thread(
             target=self.pipeline,
-            kwargs=dict(
-                text_inputs=prompt,
-                max_new_tokens=max_new_tokens,
-                do_sample=True,
-                temperature=temperature,
-                top_p=top_p,
-                streamer=self.streamer,
-                clean_up_tokenization_spaces=True,
-                repetition_penalty=repetition_penalty,
-                # presence_penalty=presence_penalty,
-                # frequency_penalty=frequency_penalty,
-            ),
+            kwargs={
+                "text_inputs": prompt,
+                "do_sample": True,
+                "streamer": streamer,
+                "clean_up_tokenization_spaces": True,
+            }
+            | sampling_params.model_dump(),
         )
         thread.start()
-        for new_text in self.streamer:
-            yield new_text
+        yield {"request_id": request_id, "response": "success", "msg": reply_prefix}
+        for new_text in streamer:
+            await asyncio.sleep(0.001)
+            yield {"request_id": request_id, "response": "success", "msg": new_text}
 
     async def abort(self, request_id: str):
         """Abort generation"""
-        self.streamer.abort()
-        return True
+        abort_generation_request(request_id)

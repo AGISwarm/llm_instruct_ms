@@ -1,0 +1,20 @@
+%YAML 1.1
+---
+engine: !!str HFEngine
+
+model_name: !!str RichardErkhov/IlyaGusev_-_saiga_llama3_8b-4bits
+tokenizer_name: !!str RichardErkhov/IlyaGusev_-_saiga_llama3_8b-4bits
+# filename: !!str "*Q4_K_M.gguf"
+
+host: !!str "127.0.0.1"
+port: !!int 8000
+websocket_url: !!str "wss://8fb7-188-88-138-217.ngrok-free.app/ws"
+abort_url: !!str "https://8fb7-188-88-138-217.ngrok-free.app/abort"
+gui_title: !!str "LLama-3-8b-Uncensored"
+
+default_max_new_tokens: !!int 1000
+default_temperature: !!float 0.6
+default_top_p: !!float 0.95
+default_repetition_penalty: !!float 1.2
+default_frequency_penalty: !!float 0.0
+default_presence_penalty: !!float 0.0

@@ -18,9 +18,11 @@ let currentRequestID = '';
 
 ws.onmessage = function (event) {
     // Send button is disabled until the response is received
-    const token = JSON.parse(event.data)["text"];
+    response_dict = JSON.parse(event.data);
+    console.log(response_dict);
+    const token = response_dict["msg"];
     currentRequestID = JSON.parse(event.data)["request_id"];
-    if (token == "<end_of_response>") {
+    if (response_dict["response"] == "end") {
         currentMessage = '';
 
         // Enable the send button
@@ -36,20 +38,33 @@ ws.onmessage = function (event) {
         document.getElementById('send-btn').disabled = false;
     }
 
-    currentMessage += token;
     const chatOutput = document.getElementById('chat-output');
     // Check if the bot message div already exists
     let botMessageContainer = chatOutput.firstElementChild;
     let botMessage = botMessageContainer ? botMessageContainer.firstElementChild : null;
     if (!botMessage || !botMessage.classList.contains('bot-message')) {
         botMessageContainer = document.createElement('div');
+        botMessageContainer.classList.add('message-container');
         botMessage = document.createElement('pre');
         botMessage.classList.add('message');
         botMessage.classList.add('bot-message');
         botMessageContainer.appendChild(botMessage);
         chatOutput.insertBefore(botMessageContainer, chatOutput.firstChild);
     }
+    if (response_dict["response"] == "waiting") {
+        botMessage.textContent = response_dict["msg"];
+        botMessage.style.color = 'blue';
+        return;
+    }
+    else if (response_dict["response"] == "abort") {
+        botMessage.innerHTML = currentMessage + "<br>" + "<span style='color:red;'>" + response_dict["msg"] + "</span>";
+        currentMessage = '';
+        return;
+    }
+    console.log(response_dict["msg"]);
+    currentMessage += response_dict["msg"];
     botMessage.textContent = currentMessage;
+    botMessage.style.color = 'black';
     const isAtBottom = chatOutput.scrollHeight - chatOutput.clientHeight <= chatOutput.scrollTop + 1;
     if (isAtBottom) {
         // If the user is at the bottom, scroll to the bottom
@@ -72,6 +87,7 @@ function sendMessage() {
 
     if (system_prompt != '') {
         systemMessageContainer = document.createElement('div');
+        systemMessageContainer.classList.add('message-container');
         system_message = document.createElement('pre');
         system_message.classList.add('message');
         system_message.classList.add('system-message');
@@ -80,6 +96,7 @@ function sendMessage() {
         document.getElementById('chat-output').insertBefore(systemMessageContainer, document.getElementById('chat-output').firstChild);
     }
     userMessageContainer = document.createElement('div');
+    userMessageContainer.classList.add('message-container');
     userMessage = document.createElement('pre');
     userMessage.classList.add('message');
     userMessage.classList.add('user-message');
@@ -128,7 +145,7 @@ function abortGeneration() {
     console.log("Generation aborted.");
 }
 
-document.getElementById('prompt').addEventListener('keydown', function (event) {
+function enterSend(event) {
     if (event.key === 'Enter' && !event.ctrlKey) {
         event.preventDefault();
         if (document.getElementById('send-btn').textContent === "Send") {
@@ -139,7 +156,11 @@ document.getElementById('prompt').addEventListener('keydown', function (event) {
         // Allow new line with Ctrl+Enter
         this.value += '\n';
     }
-});
+}
+
+document.getElementById('prompt').addEventListener('keydown', enterSend);
+document.getElementById('reply_prefix').addEventListener('keydown', enterSend);
+document.getElementById('system_prompt').addEventListener('keydown', enterSend);
 
 const menuToggle = document.getElementById('menu-toggle');
 const configContainer = document.querySelector('.config-container');
