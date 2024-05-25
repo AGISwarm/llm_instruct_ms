@@ -16,7 +16,7 @@ dependencies = ['numpy', "fastapi", "uvicorn", "pydantic", "pydantic_settings", 
 [project.optional-dependencies]
 vllm = ["vllm"]
 transformers = ["transformers"]
-llama_cpp = ["llama_cpp_python"]
+llama-cpp = ["llama_cpp_python"]
 backends = [
     "AGISwarm.llm_instruct_ms[transformers]",
     "AGISwarm.llm_instruct_ms[vllm]",

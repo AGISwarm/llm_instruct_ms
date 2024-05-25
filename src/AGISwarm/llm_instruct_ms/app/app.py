@@ -91,8 +91,11 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                     ):
                         if response["response"] == "waiting":
                             await websocket.send_json(response)
-                        reply += response["msg"]
-                        await websocket.send_json(response)
+                        elif response["response"] == "success":
+                            reply += response["msg"]
+                            await websocket.send_json(response)
+                        else:
+                            raise ValueError("Invalid response")
                     messages.append({"role": "assistant", "content": reply})
                     await websocket.send_json(
                         {
