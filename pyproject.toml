@@ -11,15 +11,33 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE.txt" }
 keywords = ["sample", "setuptools", "development"]
-classifiers = [
-    "Programming Language :: Python :: 3",
-]
-dependencies = ['numpy']
+classifiers = ["Programming Language :: Python :: 3"]
+dependencies = ['numpy', "fastapi", "uvicorn", "pydantic", "pydantic_settings"]
 [project.optional-dependencies]
+vllm = ["vllm"]
+transformers = ["transformers"]
+llama_cpp = ["llama_cpp"]
+backends = [
+    "AGISwarm.llm_instruct_ms[transformers]",
+    "AGISwarm.llm_instruct_ms[vllm]",
+    "AGISwarm.llm_instruct_ms[llama_cpp]",
+]
+GUI = ["jinja2"]
+
+
 test = ['pytest']
 analyze = ['pyright', 'pylint', 'bandit', 'black', 'isort']
 build = ['setuptools', 'wheel', 'build']
 publish = ['twine']
+
+all = [
+    'AGISwarm.llm_instruct_ms[test]',
+    'AGISwarm.llm_instruct_ms[analyze]',
+    'AGISwarm.llm_instruct_ms[build]',
+    'AGISwarm.llm_instruct_ms[publish]',
+    'AGISwarm.llm_instruct_ms[backends]',
+    'AGISwarm.llm_instruct_ms[GUI]',
+]
 
 
 [tool.setuptools.dynamic]
@@ -29,5 +47,5 @@ version = { file = "VERSION" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data] 
+[tool.setuptools.package-data]
 python_template = ["py.typed"]
