@@ -6,7 +6,7 @@ from typing import cast
 
 from llama_cpp import CreateCompletionStreamResponse, Llama
 from pydantic import Field
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer  # type: ignore
 
 from .utils import (
     EngineProtocol,

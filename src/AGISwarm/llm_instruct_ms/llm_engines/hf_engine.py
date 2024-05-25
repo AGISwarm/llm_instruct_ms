@@ -6,7 +6,7 @@ from threading import Thread
 from typing import cast
 
 import torch
-import transformers
+import transformers  # type: ignore
 from pydantic import Field
 
 from .utils import (

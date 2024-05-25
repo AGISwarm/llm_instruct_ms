@@ -1,0 +1,10 @@
+{
+    "pythonVersion": "3.10", // Specify the Python version to use
+    "pythonPlatform": "Linux", // Specify the platform (Windows, Linux, or macOS)
+    "typeCheckingMode": "standard", // Set the type checking mode (basic or strict)
+    "reportMissingTypeStubs": true, // Report missing type stubs for imported modules
+    // Specify paths for Python modules
+    "pythonPath": [
+        "src" // Add the "src" directory to the Python path
+    ],
+}
