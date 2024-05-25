@@ -10,8 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from pydantic_settings import BaseSettings
 
-from ..settings import LLMInstructSettings, ENGINE_MAP, ENGINE_SAMPLING_PARAMS_MAP
 from ..llm_engines import EngineProtocol
+from ..settings import ENGINE_MAP, ENGINE_SAMPLING_PARAMS_MAP, LLMInstructSettings
 
 
 class LLMInstructApp:  # pylint: disable=too-few-public-methods
@@ -95,7 +95,9 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                             reply += response["msg"]
                             await websocket.send_json(response)
                         else:
-                            raise ValueError("Invalid response")
+                            raise ValueError(
+                                f"Invalid response: {response['response']}"
+                            )
                     messages.append({"role": "assistant", "content": reply})
                     await websocket.send_json(
                         {

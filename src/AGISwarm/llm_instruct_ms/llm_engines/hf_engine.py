@@ -68,7 +68,7 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
         self.pipeline = cast(
             transformers.TextGenerationPipeline,
             transformers.pipeline(
-                "text-generation",
+                task="text-generation",
                 model=model_name,
                 device_map="auto",
                 tokenizer=self.tokenizer,

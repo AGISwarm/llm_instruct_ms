@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 import torch
-import vllm
+import vllm  # type: ignore
 from pydantic import Field
 
 from .utils import EngineProtocol, SamplingParams, prepare_prompt
