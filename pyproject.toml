@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 license = { file = "LICENSE.txt" }
 keywords = ["sample", "setuptools", "development"]
 classifiers = ["Programming Language :: Python :: 3"]
-dependencies = ['numpy', "fastapi", "uvicorn", "pydantic", "pydantic_settings"]
+dependencies = ['numpy', "fastapi", "uvicorn", "pydantic", "pydantic_settings", "ruamel.yaml"]
 [project.optional-dependencies]
 vllm = ["vllm"]
 transformers = ["transformers"]
@@ -33,8 +33,6 @@ publish = ['twine']
 all = [
     'AGISwarm.llm_instruct_ms[test]',
     'AGISwarm.llm_instruct_ms[analyze]',
-    'AGISwarm.llm_instruct_ms[build]',
-    'AGISwarm.llm_instruct_ms[publish]',
     'AGISwarm.llm_instruct_ms[backends]',
     'AGISwarm.llm_instruct_ms[GUI]',
 ]
