@@ -20,7 +20,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
     def __init__(self, settings: LLMInstructSettings):
         self.settings = settings
         self.app = FastAPI()
-        self.llm: EngineProtocol = ENGINE_MAP[settings.engine](
+        self.llm: EngineProtocol[Any] = ENGINE_MAP[settings.engine](
             **settings.engine_settings.model_dump()
         )
         self.sampling_settings_cls = ENGINE_SAMPLING_PARAMS_MAP[settings.engine]
@@ -39,7 +39,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
         router = APIRouter()
 
         @router.get("/")
-        async def get_root():
+        async def get_root():  # type: ignore
             """Root endpoint. Serves gui/index.html"""
             env = Environment(
                 loader=FileSystemLoader(Path(__file__).parent / "gui"), autoescape=True
@@ -63,7 +63,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
         router = APIRouter()
 
         @router.websocket("/ws")
-        async def generate(websocket: WebSocket):
+        async def generate(websocket: WebSocket):  # type: ignore
             """WebSocket endpoint"""
             await websocket.accept()
             try:

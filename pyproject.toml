@@ -12,7 +12,14 @@ requires-python = ">=3.10"
 license = { file = "LICENSE.txt" }
 keywords = ["sample", "setuptools", "development"]
 classifiers = ["Programming Language :: Python :: 3"]
-dependencies = ['numpy', "fastapi", "uvicorn", "pydantic", "pydantic_settings", "ruamel.yaml"]
+dependencies = [
+    'numpy',
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "pydantic_settings",
+    "ruamel.yaml",
+]
 [project.optional-dependencies]
 vllm = ["vllm"]
 transformers = ["transformers"]
@@ -25,8 +32,14 @@ backends = [
 GUI = ["jinja2"]
 
 
-test = ['pytest']
-analyze = ['pyright', 'pylint', 'bandit', 'black', 'isort']
+test = ['pytest==8.2.1']
+analyze = [
+    'pyright==1.1.364',
+    'pylint==3.2.2',
+    'bandit==1.7.8',
+    'black==24.4.2',
+    'isort==5.13.2',
+]
 build = ['setuptools', 'wheel', 'build']
 publish = ['twine']
 

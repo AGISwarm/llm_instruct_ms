@@ -3,7 +3,7 @@
 import asyncio
 import threading
 from abc import abstractmethod
-from typing import Generic, Protocol, TypeVar, cast, runtime_checkable
+from typing import Dict, Generic, List, Protocol, TypeVar, cast, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -29,7 +29,7 @@ class EngineProtocol(Protocol, Generic[_SamplingParams_contra]):
     async def generate(
         self,
         request_id: str,
-        messages: list[dict],
+        messages: List[Dict[str, str]],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
     ):
@@ -42,8 +42,8 @@ class EngineProtocol(Protocol, Generic[_SamplingParams_contra]):
 
 
 def prepare_prompt(
-    tokenizer,
-    messages: list[dict],
+    tokenizer: object,
+    messages: List[Dict[str, str]],
     reply_prefix: str | None = None,
     tokenize: bool = False,
 ):

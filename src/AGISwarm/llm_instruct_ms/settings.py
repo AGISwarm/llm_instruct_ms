@@ -15,13 +15,15 @@ from .llm_engines import (
     VLLMSamplingParams,
 )
 
-ENGINE_MAP: Dict[str, Type] = {
+ENGINE_MAP: Dict[str, Type[Union[HFEngine, VLLMEngine, LlamaCppEngine]]] = {
     "HFEngine": HFEngine,
     "VLLMEngine": VLLMEngine,
     "LlamaCppEngine": LlamaCppEngine,
 }
 
-ENGINE_SAMPLING_PARAMS_MAP: Dict[str, Type] = {
+ENGINE_SAMPLING_PARAMS_MAP: Dict[
+    str, Type[Union[HFSamplingParams, VLLMSamplingParams, LlamaCppSamplingParams]]
+] = {
     "HFEngine": HFSamplingParams,
     "VLLMEngine": VLLMSamplingParams,
     "LlamaCppEngine": LlamaCppSamplingParams,
