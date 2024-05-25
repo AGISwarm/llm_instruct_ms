@@ -56,7 +56,9 @@ class LlamaCppEngine(EngineProtocol[LlamaCppSamplingParams]):
         """Get sampling params"""
         sampling_params_dict = sampling_params.model_dump()
         sampling_params_dict["max_tokens"] = sampling_params_dict.pop("max_new_tokens")
-        sampling_params_dict["repeat_penalty"] = sampling_params_dict.pop("repetition_penalty")
+        sampling_params_dict["repeat_penalty"] = sampling_params_dict.pop(
+            "repetition_penalty"
+        )
         return sampling_params_dict
 
     @partial(generation_request_queued_func, wait_time=0.001)
