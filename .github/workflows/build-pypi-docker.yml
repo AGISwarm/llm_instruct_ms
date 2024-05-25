@@ -13,6 +13,7 @@ jobs:
           uses: actions/setup-python@v2
           with:
             python-version: '3.x'
+            cache: 'pip'
         - name: Update VERSION file
           run: echo "${{  github.ref_name }}" | cut -c 2- > VERSION
         - name: Install dependencies
