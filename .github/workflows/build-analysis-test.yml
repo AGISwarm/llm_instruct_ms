@@ -29,7 +29,6 @@ jobs:
         source .venv/bin/activate 
         python -m pip install --upgrade pip
         python -m pip install -e .[all] \
-            --no-cache-dir \
             --extra-index-url $PIP_PROTOCOL://$PIP_USERNAME:$PIP_PASSWORD@$PIP_INDEX_EXTRA_URL_REMAINDER \
             --trusted-host $PIP_INDEX_EXTRA_URL_REMAINDER
   analysis:
