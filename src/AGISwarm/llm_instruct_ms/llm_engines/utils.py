@@ -2,16 +2,8 @@
 
 import asyncio
 import threading
-from typing import (
-    Generic,
-    Protocol,
-    TypeVar,
-    cast,
-    runtime_checkable,
-)
-
 from abc import abstractmethod
-
+from typing import Generic, Protocol, TypeVar, cast, runtime_checkable
 
 from pydantic import BaseModel
 

@@ -5,8 +5,8 @@ from functools import partial
 from typing import cast
 
 from llama_cpp import CreateCompletionStreamResponse, Llama
-from transformers import AutoTokenizer
 from pydantic import Field
+from transformers import AutoTokenizer
 
 from .utils import (
     EngineProtocol,
