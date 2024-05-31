@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import cast
 
 import vllm  # type: ignore
 from pydantic import Field
@@ -45,8 +46,8 @@ class VLLMEngine(EngineProtocol[VLLMSamplingParams]):
             skip_special_tokens=True,
             truncate_prompt_tokens=True,
             stop_token_ids=[
-                int(self.tokenizer.eos_token_id),
-                int(self.tokenizer.convert_tokens_to_ids("<|eot_id|>")),
+                cast(int, self.tokenizer.eos_token_id),
+                cast(int, self.tokenizer.convert_tokens_to_ids("<|eot_id|>")),
             ],
         )
 
@@ -55,18 +56,16 @@ class VLLMEngine(EngineProtocol[VLLMSamplingParams]):
         request_id: str,
         messages: list[dict],
         reply_prefix: str | None = None,
-        sampling_params: (
-            VLLMSamplingParams | vllm.SamplingParams
-        ) = VLLMSamplingParams(),
+        sampling_params: VLLMSamplingParams = VLLMSamplingParams(),
     ):
         """Generate text from prompt"""
         prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)
-        sampling_params = self.get_sampling_params(sampling_params)
+        vllm_sampling_params = self.get_sampling_params(sampling_params)
         if reply_prefix:
             yield {"request_id": request_id, "response": "success", "msg": reply_prefix}
         current_len = 0
         async for output in self.model.generate(
-            prompt, sampling_params=sampling_params, request_id=request_id
+            prompt, sampling_params=vllm_sampling_params, request_id=request_id
         ):
             await asyncio.sleep(0.001)
             yield {
