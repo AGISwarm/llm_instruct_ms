@@ -3,7 +3,6 @@
 import asyncio
 import logging
 
-import torch
 import vllm  # type: ignore
 from pydantic import Field
 
