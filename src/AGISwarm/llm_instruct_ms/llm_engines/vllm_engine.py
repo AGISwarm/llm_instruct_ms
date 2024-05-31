@@ -26,7 +26,7 @@ class VLLMEngine(EngineProtocol[VLLMSamplingParams]):
             vllm.AsyncEngineArgs(
                 model=model_name,
                 tokenizer=tokenizer_name or model_name,
-                dtype=torch.float16,
+                dtype="float16",
                 tensor_parallel_size=2,
                 gpu_memory_utilization=1.0,
                 trust_remote_code=True,
@@ -35,7 +35,9 @@ class VLLMEngine(EngineProtocol[VLLMSamplingParams]):
         logging.info("Model loaded")
         self.tokenizer = asyncio.run(self.model.get_tokenizer())
 
-    def get_sampling_params(self, sampling_params: VLLMSamplingParams):
+    def get_sampling_params(
+        self, sampling_params: VLLMSamplingParams
+    ) -> vllm.SamplingParams:
         """Get sampling params"""
         sampling_params_dict = sampling_params.model_dump()
         sampling_params_dict["max_tokens"] = sampling_params_dict.pop("max_new_tokens")
@@ -44,8 +46,8 @@ class VLLMEngine(EngineProtocol[VLLMSamplingParams]):
             skip_special_tokens=True,
             truncate_prompt_tokens=True,
             stop_token_ids=[
-                self.tokenizer.eos_token_id,
-                self.tokenizer.convert_tokens_to_ids("<|eot_id|>"),
+                int(self.tokenizer.eos_token_id),
+                int(self.tokenizer.convert_tokens_to_ids("<|eot_id|>")),
             ],
         )
 
@@ -54,7 +56,9 @@ class VLLMEngine(EngineProtocol[VLLMSamplingParams]):
         request_id: str,
         messages: list[dict],
         reply_prefix: str | None = None,
-        sampling_params: VLLMSamplingParams = VLLMSamplingParams(),
+        sampling_params: (
+            VLLMSamplingParams | vllm.SamplingParams
+        ) = VLLMSamplingParams(),
     ):
         """Generate text from prompt"""
         prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)

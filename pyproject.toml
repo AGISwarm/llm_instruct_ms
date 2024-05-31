@@ -54,7 +54,6 @@ all = [
 [tool.setuptools.dynamic]
 version = { file = "VERSION" }
 
-
 [tool.setuptools.packages.find]
 where = ["src"]
 
