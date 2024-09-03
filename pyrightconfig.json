@@ -3,4 +3,5 @@
     "pythonPlatform": "Linux", // Specify the platform (Windows, Linux, or macOS)
     "typeCheckingMode": "standard", // Set the type checking mode (basic or strict)
     "reportMissingTypeStubs": false, // Report missing type stubs for imported modules
+    "reportPrivateImportUsage": false
 }

@@ -6,8 +6,6 @@ model_name: !!str "meta-llama/Meta-Llama-3-8B-Instruct"
 
 host: !!str "127.0.0.1"
 port: !!int 8000
-websocket_url: !!str "wss://8fb7-188-88-138-217.ngrok-free.app/ws"
-abort_url: !!str "https://8fb7-188-88-138-217.ngrok-free.app/abort"
 gui_title: !!str "meta-llama/Meta-Llama-3-8B-Instruct"
 
 default_max_new_tokens: !!int 1000
