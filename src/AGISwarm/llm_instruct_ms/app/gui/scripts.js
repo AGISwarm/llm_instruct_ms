@@ -1,5 +1,5 @@
 
-let ws = new WebSocket(WEBSOCKET_URL); // "wss://8fb7-188-88-138-217.ngrok-free.app/ws"
+let ws = new WebSocket(WEBSOCKET_URL);
 ws.onopen = function () {
     console.log("WebSocket is open now.");
 };

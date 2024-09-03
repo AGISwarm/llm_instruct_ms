@@ -88,8 +88,6 @@ class NetworkingSettings(BaseSettings):
 
     host: str = "127.0.0.1"
     port: int = 8000
-    websocket_url: str | None = "wss://8fb7-188-88-138-217.ngrok-free.app/ws"
-    abort_url: str | None = "https://8fb7-188-88-138-217.ngrok-free.app/abort"
 
 
 class LLMInstructSettings(

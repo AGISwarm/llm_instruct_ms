@@ -3,11 +3,10 @@
 engine: !!str VLLMEngine
 
 model_name: !!str "DevsDoCode/LLama-3-8b-Uncensored"
+tokenizer_name: "meta-llama/Meta-Llama-3-8B-Instruct"
 
 host: !!str "127.0.0.1"
 port: !!int 8000
-websocket_url: !!str "wss://d2e5-188-88-138-217.ngrok-free.app/ws"
-abort_url: !!str "https://d2e5-188-88-138-217.ngrok-free.app/abort"
 
 gui_title: !!str "LLama-3-8b-Uncensored"
 default_max_new_tokens: !!int 1000
