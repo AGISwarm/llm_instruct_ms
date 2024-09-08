@@ -19,6 +19,7 @@ dependencies = [
     "pydantic",
     "pydantic_settings",
     "ruamel.yaml",
+    "hydra-core",
 ]
 [project.optional-dependencies]
 vllm = ["vllm"]
