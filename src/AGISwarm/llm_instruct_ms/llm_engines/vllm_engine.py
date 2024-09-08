@@ -21,11 +21,11 @@ class VLLMSamplingParams(SamplingParams):
 class VLLMEngine(EngineProtocol[VLLMSamplingParams]):
     """LLM Instruct Model Inference using VLLM"""
 
-    def __init__(self, model_name: str, tokenizer_name: str | None = None):
+    def __init__(self, hf_model_name: str, tokenizer_name: str | None = None):
         self.model = vllm.AsyncLLMEngine.from_engine_args(
             vllm.AsyncEngineArgs(
-                model=model_name,
-                tokenizer=tokenizer_name or model_name,
+                model=hf_model_name,
+                tokenizer=tokenizer_name or hf_model_name,
                 dtype="float16",
                 tensor_parallel_size=2,
                 gpu_memory_utilization=1.0,

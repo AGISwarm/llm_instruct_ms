@@ -2,28 +2,38 @@
 
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
-from pydantic_settings import BaseSettings
+from omegaconf import OmegaConf
+from pydantic import BaseModel
 
-from ..llm_engines import EngineProtocol
-from ..settings import ENGINE_MAP, ENGINE_SAMPLING_PARAMS_MAP, LLMInstructSettings
+from .llm_engines import EngineProtocol
+from .typing import (
+    ENGINE_CONFIG_MAP,
+    ENGINE_MAP,
+    ENGINE_SAMPLING_PARAMS_MAP,
+    LLMInstructConfig,
+)
 
 
 class LLMInstructApp:  # pylint: disable=too-few-public-methods
     """Application factory"""
 
-    def __init__(self, settings: LLMInstructSettings):
-        self.settings = settings
+    def __init__(self, config: LLMInstructConfig):
+        self.config = config
         self.app = FastAPI()
-        self.llm: EngineProtocol[Any] = ENGINE_MAP[settings.engine](
-            **settings.engine_settings.model_dump()
+        if config.engine_config is None:
+            config.engine_config = ENGINE_CONFIG_MAP[config.engine]()
+        self.llm: EngineProtocol[Any] = ENGINE_MAP[config.engine](  # type: ignore
+            hf_model_name=config.hf_model_name,
+            tokenizer_name=config.tokenizer_name,
+            **cast(dict, OmegaConf.to_container(config.engine_config)),
         )
-        self.sampling_settings_cls = ENGINE_SAMPLING_PARAMS_MAP[settings.engine]
+        self.sampling_settings_cls = ENGINE_SAMPLING_PARAMS_MAP[config.engine]
         self._configure_routers()
 
     def _configure_routers(self):
@@ -52,7 +62,9 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             ) as f:
                 f.write(
                     template.render(
-                        **self.settings.model_dump(),
+                        OmegaConf.to_container(
+                            self.config.gui_config.default_sampling_config
+                        ),
                     )
                 )
             return FileResponse(Path(__file__).parent / "gui" / "current_index.html")
@@ -94,6 +106,9 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                         elif response["response"] == "success":
                             reply += response["msg"]
                             await websocket.send_json(response)
+                        elif response["response"] == "abort":
+                            await websocket.send_json(response)
+                            break
                         else:
                             raise ValueError(
                                 f"Invalid response: {response['response']}"
@@ -111,7 +126,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             finally:
                 await websocket.close()
 
-        class AbortRequest(BaseSettings):
+        class AbortRequest(BaseModel):
             """Abort request"""
 
             request_id: str

@@ -60,8 +60,8 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
 
     def __init__(
         self,
-        model_name: str = "IlyaGusev/saiga_llama3_8b",
-        tokenizer_name: str = "meta-llama/Meta-Llama-3-8B-Instruct",
+        hf_model_name: str,
+        tokenizer_name: str | None,
     ):
 
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
@@ -69,12 +69,12 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
             transformers.TextGenerationPipeline,
             transformers.pipeline(
                 task="text-generation",
-                model=model_name,
+                model=hf_model_name,
                 device_map="auto",
                 tokenizer=self.tokenizer,
                 model_kwargs={
                     "quantization_config": (
-                        BNB_CONFIG if MODEL_IS_4bit[model_name] else None
+                        BNB_CONFIG if MODEL_IS_4bit[hf_model_name] else None
                     )
                 },
             ),

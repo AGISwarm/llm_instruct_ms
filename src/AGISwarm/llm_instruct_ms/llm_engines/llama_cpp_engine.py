@@ -36,17 +36,17 @@ class LlamaCppEngine(EngineProtocol[LlamaCppSamplingParams]):
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        model_name: str,
+        hf_model_name: str,
         tokenizer_name: str | None,
         filename: str,
         n_gpu_layers: int = -1,
         n_ctx: int = 8192,
     ):
         self.llama = Llama.from_pretrained(
-            model_name, filename=filename, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx
+            hf_model_name, filename=filename, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx
         )
         self.tokenizer: object = AutoTokenizer.from_pretrained(
-            tokenizer_name or model_name
+            tokenizer_name or hf_model_name
         )
 
     def get_sampling_params(self, sampling_params: LlamaCppSamplingParams):

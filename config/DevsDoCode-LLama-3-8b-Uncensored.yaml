@@ -1,17 +1,12 @@
 %YAML 1.1
 ---
-engine: !!str VLLMEngine
 
-model_name: !!str "DevsDoCode/LLama-3-8b-Uncensored"
+hf_model_name: !!str "Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF"
 tokenizer_name: "meta-llama/Meta-Llama-3-8B-Instruct"
 
-host: !!str "127.0.0.1"
-port: !!int 8000
+engine: !!str VLLMEngine
+engine_config:
 
-gui_title: !!str "LLama-3-8b-Uncensored"
-default_max_new_tokens: !!int 1000
-default_temperature: !!float 0.6
-default_top_p: !!float 0.95
-default_repetition_penalty: !!float 1.2
-default_frequency_penalty: !!float 0.0
-default_presence_penalty: !!float 0.0
+defaults:
+  - gui_config: default
+  - uvicorn_config: default
