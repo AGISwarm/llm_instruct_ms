@@ -38,6 +38,7 @@ class VLLMConfig(ModelConfig):
 
     filename: str | None = None
 
+
 class HFConfig(ModelConfig):
     """HF settings"""
 

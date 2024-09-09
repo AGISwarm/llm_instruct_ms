@@ -1,7 +1,7 @@
 """Utility functions for LLM engines"""
 
 from abc import abstractmethod
-from typing import Dict, Generic, List, Protocol, TypeVar, cast, runtime_checkable
+from typing import Dict, Generic, List, TypeVar, cast
 
 from pydantic import BaseModel
 
@@ -19,12 +19,13 @@ _SamplingParams_contra = TypeVar(
 )
 
 
-@runtime_checkable
 # pylint: disable=too-few-public-methods
-class EngineProtocol(Protocol, Generic[_SamplingParams_contra]):
+class Engine(Generic[_SamplingParams_contra]):
     """Engine protocol"""
 
-    @abstractmethod
+    conversations: Dict[str, List[Dict[str, str]]]
+
+    # pylint: disable=too-many-arguments
     async def __call__(
         self,
         conversation_id: str,
@@ -33,8 +34,26 @@ class EngineProtocol(Protocol, Generic[_SamplingParams_contra]):
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
     ):
-        """Generate text from prompt"""
-        yield str()
+        if system_prompt != "":
+            self.conversations[conversation_id].append(
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                }
+            )
+        self.conversations[conversation_id].append({"role": "user", "content": prompt})
+        reply: str = ""
+        async for response in self.generate(
+            self.conversations[conversation_id],
+            reply_prefix,
+            sampling_params,
+        ):
+            reply += response
+            yield response
+        self.conversations[conversation_id].append(
+            {"role": "assistant", "content": reply}
+        )
+        yield ""
 
     @abstractmethod
     async def generate(
@@ -47,12 +66,12 @@ class EngineProtocol(Protocol, Generic[_SamplingParams_contra]):
         yield str()
 
 
-@runtime_checkable
 # pylint: disable=too-few-public-methods
-class ConcurrentEngineProtocol(Protocol, Generic[_SamplingParams_contra]):
+class ConcurrentEngine(Generic[_SamplingParams_contra]):
     """Concurrent engine protocol"""
 
-    @abstractmethod
+    conversations: Dict[str, List[Dict[str, str]]]
+
     # pylint: disable=too-many-arguments
     async def __call__(
         self,
@@ -63,16 +82,34 @@ class ConcurrentEngineProtocol(Protocol, Generic[_SamplingParams_contra]):
         sampling_params: _SamplingParams_contra,
         task_id: str,
     ):
-        """Generate text from prompt"""
-        yield str()
+        if conversation_id not in self.conversations:
+            self.conversations[conversation_id] = []
+        if system_prompt != "":
+            self.conversations[conversation_id].append(
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                }
+            )
+        self.conversations[conversation_id].append({"role": "user", "content": prompt})
+        reply: str = ""
+        async for response in self.generate(
+            self.conversations[conversation_id], reply_prefix, sampling_params, task_id
+        ):
+            reply += response
+            yield response
+        self.conversations[conversation_id].append(
+            {"role": "assistant", "content": reply}
+        )
+        yield ""
 
     @abstractmethod
     async def generate(
         self,
-        task_id: str,
         messages: List[Dict[str, str]],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
+        task_id: str,
     ):
         """Generate text from prompt"""
         yield str()

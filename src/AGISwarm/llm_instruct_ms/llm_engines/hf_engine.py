@@ -7,7 +7,7 @@ import torch
 import transformers  # type: ignore
 from pydantic import Field
 
-from .utils import EngineProtocol, SamplingParams, prepare_prompt
+from .engine import Engine, SamplingParams, prepare_prompt
 
 SUPPORTED_MODELS = [
     "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -48,7 +48,7 @@ class HFSamplingParams(SamplingParams):
 
 
 # pylint: disable=too-few-public-methods
-class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-name
+class HFEngine(Engine[HFSamplingParams]):  # pylint: disable=invalid-name
     """LLM Instruct Model Inference"""
 
     def __init__(
@@ -100,33 +100,3 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
             yield reply_prefix
         for new_text in streamer:
             yield cast(str, new_text)
-
-    # pylint: disable=too-many-arguments
-    async def __call__(
-        self,
-        conversation_id: str,
-        prompt: str,
-        system_prompt: str,
-        reply_prefix: str,
-        sampling_params: HFSamplingParams,
-    ):
-        if system_prompt != "":
-            self.conversations[conversation_id].append(
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                }
-            )
-        self.conversations[conversation_id].append({"role": "user", "content": prompt})
-        reply: str = ""
-        async for response in self.generate(
-            self.conversations[conversation_id],
-            reply_prefix,
-            sampling_params,
-        ):
-            reply += response
-            yield response
-        self.conversations[conversation_id].append(
-            {"role": "assistant", "content": reply}
-        )
-        yield ""

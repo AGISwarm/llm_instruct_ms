@@ -13,7 +13,6 @@ function resetForm() {
     document.getElementById('presence_penalty').value = DEFAULT_PRESENCE_PENALTY;
     document.getElementById('system_prompt').value = DEFAULT_SYSTEM_PROMPT;
 }
-let currentMessage = '';
 let currentRequestID = '';
 
 
@@ -33,7 +32,7 @@ function enableAbortButton() {
     document.getElementById('send-btn').disabled = false;
 }
 
-function updateBotMessage(message) {
+function updateBotMessage(message, replace = false) {
     const chatOutput = document.getElementById('chat-output');
     // Check if the bot message div already exists
     let botMessageContainer = chatOutput.firstElementChild;
@@ -47,7 +46,12 @@ function updateBotMessage(message) {
         botMessageContainer.appendChild(botMessage);
         chatOutput.insertBefore(botMessageContainer, chatOutput.firstChild);
     }
-    botMessage.textContent += message;
+    if (replace) {
+        botMessage.textContent = message;
+    }
+    else {
+        botMessage.textContent += message;
+    }
     botMessage.style.color = 'black';
     const isAtBottom = chatOutput.scrollHeight - chatOutput.clientHeight <= chatOutput.scrollTop + 1;
     if (isAtBottom) {
@@ -62,23 +66,20 @@ ws.onmessage = function (event) {
     response_dict = JSON.parse(event.data);
     console.log(response_dict);
     currentRequestID = JSON.parse(event.data)["task_id"];
-    
+
     switch (response_dict["status"]) {
         case "starting":
-            currentMessage = '';
             disableGenerateButton();
             return;
         case "finished":
-            currentMessage = '';
             enableGenerateButton();
             return;
         case "waiting":
             queue_pos = response_dict["queue_pos"];
-            botMessage.textContent = "Waiting in queue. Position: " + queue_pos;
-            botMessage.style.color = 'blue';
+            updateBotMessage("<br>" + "<span style='color:blue;'>You are in position " + queue_pos + " in the queue</span>", replace = true);
             enableAbortButton();
             return;
-        case "abort":
+        case "aborted":
             updateBotMessage("<br>" + "<span style='color:red;'>Generation aborted</span>");
             enableAbortButton();
             return;

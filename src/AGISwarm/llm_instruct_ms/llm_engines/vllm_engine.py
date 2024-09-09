@@ -8,7 +8,7 @@ import vllm  # type: ignore
 from huggingface_hub import hf_hub_download
 from pydantic import Field
 
-from .utils import ConcurrentEngineProtocol, SamplingParams, prepare_prompt
+from .engine import ConcurrentEngine, SamplingParams, prepare_prompt
 
 
 class VLLMSamplingParams(SamplingParams):
@@ -19,7 +19,7 @@ class VLLMSamplingParams(SamplingParams):
     presence_penalty: float = Field(default=0.0, description="Presence penalty")
 
 
-class VLLMEngine(ConcurrentEngineProtocol[VLLMSamplingParams]):
+class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
     """LLM Instruct Model Inference using VLLM"""
 
     def __init__(
@@ -64,10 +64,10 @@ class VLLMEngine(ConcurrentEngineProtocol[VLLMSamplingParams]):
 
     async def generate(
         self,
-        task_id: str,
         messages: list[dict],
         reply_prefix: str | None,
         sampling_params: VLLMSamplingParams,
+        task_id: str,
     ):
         """Generate text from prompt"""
         prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)
@@ -82,37 +82,3 @@ class VLLMEngine(ConcurrentEngineProtocol[VLLMSamplingParams]):
             current_len = len(output.outputs[0].text)
             if output.finished:
                 break
-
-    # pylint: disable=too-many-arguments
-    async def __call__(
-        self,
-        conversation_id: str,
-        prompt: str,
-        system_prompt: str,
-        reply_prefix: str,
-        sampling_params: VLLMSamplingParams,
-        task_id: str,
-    ):
-        if conversation_id not in self.conversations:
-            self.conversations[conversation_id] = []
-        if system_prompt != "":
-            self.conversations[conversation_id].append(
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                }
-            )
-        self.conversations[conversation_id].append({"role": "user", "content": prompt})
-        reply: str = ""
-        async for response in self.generate(
-            task_id,
-            self.conversations[conversation_id],
-            reply_prefix,
-            sampling_params,
-        ):
-            reply += response
-            yield response
-        self.conversations[conversation_id].append(
-            {"role": "assistant", "content": reply}
-        )
-        yield ""

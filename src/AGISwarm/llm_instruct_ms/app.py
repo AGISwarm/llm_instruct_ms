@@ -14,8 +14,7 @@ from jinja2 import Environment, FileSystemLoader
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 
-from .llm_engines import EngineProtocol
-from .llm_engines.utils import ConcurrentEngineProtocol
+from .llm_engines import ConcurrentEngine, Engine
 from .typing import (
     ENGINE_MAP,
     ENGINE_SAMPLING_PARAMS_MAP,
@@ -32,7 +31,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
         self.app = FastAPI()
         if config.engine_config is None:
             config.engine_config = cast(None, OmegaConf.create())
-        self.llm_pipeline: EngineProtocol[Any] = ENGINE_MAP[config.engine](  # type: ignore
+        self.llm_pipeline: Engine[Any] = ENGINE_MAP[config.engine](  # type: ignore
             hf_model_name=config.hf_model_name,
             tokenizer_name=config.tokenizer_name,
             **cast(dict, OmegaConf.to_container(config.engine_config)),
@@ -92,7 +91,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                 queued_task = self.queue_manager.queued_generator(
                     self.llm_pipeline.__call__,
                     pass_task_id=isinstance(
-                        self.llm_pipeline, ConcurrentEngineProtocol  # type: ignore
+                        self.llm_pipeline, ConcurrentEngine  # type: ignore
                     ),
                 )
                 # task_id and interrupt_event are created by the queued_generator

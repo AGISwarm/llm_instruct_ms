@@ -6,7 +6,7 @@ from llama_cpp import CreateCompletionStreamResponse, Llama
 from pydantic import Field
 from transformers import AutoTokenizer  # type: ignore
 
-from .utils import EngineProtocol, SamplingParams, prepare_prompt
+from .engine import Engine, SamplingParams, prepare_prompt
 
 
 class LlamaCppSamplingParams(SamplingParams):
@@ -17,7 +17,7 @@ class LlamaCppSamplingParams(SamplingParams):
     presence_penalty: float = Field(default=0.0, description="Presence penalty")
 
 
-class LlamaCppEngine(EngineProtocol[LlamaCppSamplingParams]):
+class LlamaCppEngine(Engine[LlamaCppSamplingParams]):
     """LLM Instruct Model Inference"""
 
     def __init__(  # pylint: disable=too-many-arguments
@@ -63,33 +63,3 @@ class LlamaCppEngine(EngineProtocol[LlamaCppSamplingParams]):
         ):
             output = cast(CreateCompletionStreamResponse, output)
             yield output["choices"][0]["text"]
-
-    # pylint: disable=too-many-arguments
-    async def __call__(
-        self,
-        conversation_id: str,
-        prompt: str,
-        system_prompt: str,
-        reply_prefix: str,
-        sampling_params: LlamaCppSamplingParams,
-    ):
-        if system_prompt != "":
-            self.conversations[conversation_id].append(
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                }
-            )
-        self.conversations[conversation_id].append({"role": "user", "content": prompt})
-        reply: str = ""
-        async for response in self.generate(
-            self.conversations[conversation_id],
-            reply_prefix,
-            sampling_params,
-        ):
-            reply += response
-            yield response
-        self.conversations[conversation_id].append(
-            {"role": "assistant", "content": reply}
-        )
-        yield ""
