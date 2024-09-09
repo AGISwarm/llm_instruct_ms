@@ -1,8 +1,8 @@
 %YAML 1.1
 ---
 
-hf_model_name: !!str "Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF"
-tokenizer_name: "meta-llama/Meta-Llama-3-8B-Instruct"
+hf_model_name: !!str "DevsDoCode/LLama-3-8b-Uncensored"
+tokenizer_name:
 
 engine: !!str VLLMEngine
 engine_config:

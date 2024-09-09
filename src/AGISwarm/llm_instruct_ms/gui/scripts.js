@@ -16,28 +16,24 @@ function resetForm() {
 let currentMessage = '';
 let currentRequestID = '';
 
-ws.onmessage = function (event) {
-    // Send button is disabled until the response is received
-    response_dict = JSON.parse(event.data);
-    console.log(response_dict);
-    const token = response_dict["msg"];
-    currentRequestID = JSON.parse(event.data)["request_id"];
-    if (response_dict["response"] == "end") {
-        currentMessage = '';
 
-        // Enable the send button
-        document.getElementById('send-btn').style.backgroundColor = "#363d46";
-        document.getElementById('send-btn').textContent = "Send";
-        document.getElementById('send-btn').disabled = false;
-        return;
-    }
-    else {
-        // Disable the send button 
-        document.getElementById('send-btn').style.backgroundColor = "#808080";
-        document.getElementById('send-btn').textContent = "Abort";
-        document.getElementById('send-btn').disabled = false;
-    }
+function disableGenerateButton() {
+    document.getElementById('send-btn').disabled = true;
+};
 
+function enableGenerateButton() {
+    document.getElementById('send-btn').style.backgroundColor = "#363d46";
+    document.getElementById('send-btn').textContent = "Send";
+    document.getElementById('send-btn').disabled = false;
+};
+
+function enableAbortButton() {
+    document.getElementById('send-btn').style.backgroundColor = "#363d46";
+    document.getElementById('send-btn').textContent = "Abort";
+    document.getElementById('send-btn').disabled = false;
+}
+
+function updateBotMessage(message) {
     const chatOutput = document.getElementById('chat-output');
     // Check if the bot message div already exists
     let botMessageContainer = chatOutput.firstElementChild;
@@ -51,26 +47,53 @@ ws.onmessage = function (event) {
         botMessageContainer.appendChild(botMessage);
         chatOutput.insertBefore(botMessageContainer, chatOutput.firstChild);
     }
-    if (response_dict["response"] == "waiting") {
-        botMessage.textContent = response_dict["msg"];
-        botMessage.style.color = 'blue';
-        return;
-    }
-    else if (response_dict["response"] == "abort") {
-        botMessage.innerHTML = currentMessage + "<br>" + "<span style='color:red;'>" + response_dict["msg"] + "</span>";
-        currentMessage = '';
-        return;
-    }
-    console.log(response_dict["msg"]);
-    currentMessage += response_dict["msg"];
-    botMessage.textContent = currentMessage;
+    botMessage.textContent += message;
     botMessage.style.color = 'black';
     const isAtBottom = chatOutput.scrollHeight - chatOutput.clientHeight <= chatOutput.scrollTop + 1;
     if (isAtBottom) {
         // If the user is at the bottom, scroll to the bottom
         chatOutput.scrollTop = chatOutput.scrollHeight;
     }
+}
+
+
+ws.onmessage = function (event) {
+    // Send button is disabled until the response is received
+    response_dict = JSON.parse(event.data);
+    console.log(response_dict);
+    currentRequestID = JSON.parse(event.data)["task_id"];
+    
+    switch (response_dict["status"]) {
+        case "starting":
+            currentMessage = '';
+            disableGenerateButton();
+            return;
+        case "finished":
+            currentMessage = '';
+            enableGenerateButton();
+            return;
+        case "waiting":
+            queue_pos = response_dict["queue_pos"];
+            botMessage.textContent = "Waiting in queue. Position: " + queue_pos;
+            botMessage.style.color = 'blue';
+            enableAbortButton();
+            return;
+        case "abort":
+            updateBotMessage("<br>" + "<span style='color:red;'>Generation aborted</span>");
+            enableAbortButton();
+            return;
+        case "error":
+            updateBotMessage("<br>" + "<span style='color:red;'>Error in generation</span>");
+            enableGenerateButton();
+            return;
+        case "running":
+            updateBotMessage(response_dict["tokens"]);
+            enableAbortButton();
+            return;
+    }
 };
+
+
 ws.onclose = function (event) {
     console.log("WebSocket is closed now.");
 };
@@ -134,7 +157,7 @@ function abortGeneration() {
     fetch(ABORT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 'request_id': currentRequestID })
+        body: JSON.stringify({ 'task_id': currentRequestID })
     })
         .then(response => response.text())
         .catch(error => console.error('Error aborting generation:', error));

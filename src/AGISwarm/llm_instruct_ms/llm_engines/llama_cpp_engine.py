@@ -1,26 +1,12 @@
 """LLaMA C++ Engine"""
 
-import asyncio
-from functools import partial
-from typing import cast
+from typing import Dict, List, cast
 
 from llama_cpp import CreateCompletionStreamResponse, Llama
 from pydantic import Field
 from transformers import AutoTokenizer  # type: ignore
 
-from .utils import (
-    EngineProtocol,
-    SamplingParams,
-    abort_generation_request,
-    generation_request_queued_func,
-    prepare_prompt,
-)
-
-__SUPPORTED_MODELS = [
-    "MaziyarPanahi/Meta-Llama-3-70B-Instruct-GGUF",
-    "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
-    "Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF",
-]
+from .utils import EngineProtocol, SamplingParams, prepare_prompt
 
 
 class LlamaCppSamplingParams(SamplingParams):
@@ -48,6 +34,7 @@ class LlamaCppEngine(EngineProtocol[LlamaCppSamplingParams]):
         self.tokenizer: object = AutoTokenizer.from_pretrained(
             tokenizer_name or hf_model_name
         )
+        self.conversations: Dict[str, List[Dict]] = {}
 
     def get_sampling_params(self, sampling_params: LlamaCppSamplingParams):
         """Get sampling params"""
@@ -58,36 +45,51 @@ class LlamaCppEngine(EngineProtocol[LlamaCppSamplingParams]):
         )
         return sampling_params_dict
 
-    @partial(generation_request_queued_func, wait_time=0.001)
     async def generate(
         self,
-        request_id: str,
         messages: list[dict],
         reply_prefix: str = "",
         sampling_params: LlamaCppSamplingParams = LlamaCppSamplingParams(),
     ):
         """Generate text from prompt"""
         prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)
-        if reply_prefix:
-            yield {
-                "request_id": request_id,
-                "response": "success",
-                "msg": reply_prefix,
-            }
         sampling_params_dict = self.get_sampling_params(sampling_params)
+        if reply_prefix:
+            yield reply_prefix
         for output in self.llama(
             prompt,
             **sampling_params_dict,
             stream=True,
         ):
             output = cast(CreateCompletionStreamResponse, output)
-            await asyncio.sleep(0.001)
-            yield {
-                "request_id": request_id,
-                "response": "success",
-                "msg": output["choices"][0]["text"],
-            }
+            yield output["choices"][0]["text"]
 
-    async def abort(self, request_id: str):
-        """Abort generation"""
-        abort_generation_request(request_id)
+    # pylint: disable=too-many-arguments
+    async def __call__(
+        self,
+        conversation_id: str,
+        prompt: str,
+        system_prompt: str,
+        reply_prefix: str,
+        sampling_params: LlamaCppSamplingParams,
+    ):
+        if system_prompt != "":
+            self.conversations[conversation_id].append(
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                }
+            )
+        self.conversations[conversation_id].append({"role": "user", "content": prompt})
+        reply: str = ""
+        async for response in self.generate(
+            self.conversations[conversation_id],
+            reply_prefix,
+            sampling_params,
+        ):
+            reply += response
+            yield response
+        self.conversations[conversation_id].append(
+            {"role": "assistant", "content": reply}
+        )
+        yield ""

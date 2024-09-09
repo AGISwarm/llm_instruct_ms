@@ -1,6 +1,5 @@
 """Application settings"""
 
-from dataclasses import dataclass
 from typing import Dict, Literal, Optional, Type, Union
 
 from omegaconf import DictConfig
@@ -30,22 +29,19 @@ ENGINE_SAMPLING_PARAMS_MAP: Dict[
 }
 
 
-@dataclass
 class ModelConfig(DictConfig):
     """Model settings"""
 
 
-@dataclass
 class VLLMConfig(ModelConfig):
     """VLLM settings"""
 
+    filename: str | None = None
 
-@dataclass
 class HFConfig(ModelConfig):
     """HF settings"""
 
 
-@dataclass
 class LlamaCppConfig(ModelConfig):
     """LlamaCpp settings"""
 
@@ -61,10 +57,13 @@ ENGINE_CONFIG_MAP: Dict[str, Type] = {
 }
 
 
-@dataclass
+# pylint: disable=too-many-instance-attributes
 class SamplingConfig(DictConfig):
     """Default sampling settings"""
 
+    prompt: str
+    system_prompt: str
+    reply_prefix: str
     max_new_tokens: int = 1000
     temperature: float = 0.6
     top_p: float = 0.95
@@ -73,7 +72,6 @@ class SamplingConfig(DictConfig):
     presence_penalty: float = 0.0
 
 
-@dataclass
 class UvicornConfig(DictConfig):
     """
     A class to hold the configuration for the Uvicorn.
@@ -85,14 +83,12 @@ class UvicornConfig(DictConfig):
     loop: LoopSetupType
 
 
-@dataclass
 class GUIConfig(DictConfig):
     """GUI settings"""
 
     default_sampling_config: SamplingConfig
 
 
-@dataclass
 class LLMInstructConfig(DictConfig):
     """LLM Instruct settings"""
 

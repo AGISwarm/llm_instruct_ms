@@ -1,22 +1,26 @@
 """Main module for the LLM instruct microservice"""
 
+import asyncio
+import logging
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, cast
 
+from AGISwarm.asyncio_queue_manager import AsyncIOQueueManager, TaskStatus
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 
 from .llm_engines import EngineProtocol
+from .llm_engines.utils import ConcurrentEngineProtocol
 from .typing import (
-    ENGINE_CONFIG_MAP,
     ENGINE_MAP,
     ENGINE_SAMPLING_PARAMS_MAP,
     LLMInstructConfig,
+    SamplingConfig,
 )
 
 
@@ -27,113 +31,147 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
         self.config = config
         self.app = FastAPI()
         if config.engine_config is None:
-            config.engine_config = ENGINE_CONFIG_MAP[config.engine]()
-        self.llm: EngineProtocol[Any] = ENGINE_MAP[config.engine](  # type: ignore
+            config.engine_config = cast(None, OmegaConf.create())
+        self.llm_pipeline: EngineProtocol[Any] = ENGINE_MAP[config.engine](  # type: ignore
             hf_model_name=config.hf_model_name,
             tokenizer_name=config.tokenizer_name,
             **cast(dict, OmegaConf.to_container(config.engine_config)),
         )
         self.sampling_settings_cls = ENGINE_SAMPLING_PARAMS_MAP[config.engine]
-        self._configure_routers()
+        self.queue_manager = AsyncIOQueueManager(
+            max_concurrent_tasks=5,
+            sleep_time=0.0001,
+        )
+        self.start_abort_lock = asyncio.Lock()
+        self.setup_routes()
 
-    def _configure_routers(self):
+    def setup_routes(self):
+        """
+        Set up the routes for the Text2Imag e service.
+        """
+        self.app.get("/", response_class=HTMLResponse)(self.gui)
         self.app.mount(
             "/static",
-            StaticFiles(directory=Path(__file__).parent / "gui"),
+            StaticFiles(directory=Path(__file__).parent / "gui", html=True),
             name="static",
         )
-        self.app.include_router(self._create_http_router())
-        self.app.include_router(self._create_ws_router())
+        self.ws_router = APIRouter()
+        self.ws_router.add_websocket_route("/ws", self.generate)
+        self.app.post("/abort")(self.abort)
+        self.app.include_router(self.ws_router)
 
-    def _create_http_router(self) -> APIRouter:
-        router = APIRouter()
-
-        @router.get("/")
-        async def get_root():  # type: ignore
-            """Root endpoint. Serves gui/index.html"""
-            env = Environment(
-                loader=FileSystemLoader(Path(__file__).parent / "gui"), autoescape=True
-            )
-            template = env.get_template("jinja2.html")
-            with open(
-                Path(__file__).parent / "gui" / "current_index.html",
-                "w",
-                encoding="utf-8",
-            ) as f:
-                f.write(
-                    template.render(
-                        OmegaConf.to_container(
-                            self.config.gui_config.default_sampling_config
-                        ),
-                    )
+    async def gui(self):
+        """Root endpoint. Serves gui/index.html"""
+        env = Environment(
+            loader=FileSystemLoader(Path(__file__).parent / "gui"), autoescape=True
+        )
+        template = env.get_template("jinja2.html")
+        with open(
+            Path(__file__).parent / "gui" / "current_index.html",
+            "w",
+            encoding="utf-8",
+        ) as f:
+            f.write(
+                template.render(
+                    OmegaConf.to_container(
+                        self.config.gui_config.default_sampling_config
+                    ),
                 )
-            return FileResponse(Path(__file__).parent / "gui" / "current_index.html")
+            )
+        return FileResponse(Path(__file__).parent / "gui" / "current_index.html")
 
-        return router
-
-    def _create_ws_router(self) -> APIRouter:
-        router = APIRouter()
-
-        @router.websocket("/ws")
-        async def generate(websocket: WebSocket):  # type: ignore
-            """WebSocket endpoint"""
-            await websocket.accept()
-            try:
-                messages: List[Dict[str, Any]] = []
-                while True:
-                    sampling_dict: Dict[str, Any] = await websocket.receive_json()
-                    system_prompt = sampling_dict.pop("system_prompt", "")
-                    reply_prefix = sampling_dict.pop("reply_prefix", "")
-                    prompt = sampling_dict.pop("prompt", "")
-                    if system_prompt != "":
-                        messages.append(
-                            {
-                                "role": "system",
-                                "content": system_prompt,
-                            }
-                        )
-                    messages.append({"role": "user", "content": prompt})
-                    reply = ""
-                    request_id = str(uuid.uuid4())
-                    async for response in self.llm.generate(
-                        request_id,
-                        messages,
-                        reply_prefix,
-                        self.sampling_settings_cls.model_validate(sampling_dict),
+    async def generate(self, websocket: WebSocket):  # type: ignore
+        """WebSocket endpoint"""
+        await websocket.accept()
+        try:
+            conversation_id = str(uuid.uuid4())
+            while True:
+                data: Dict[str, Any] = await websocket.receive_json()
+                gen_config = SamplingConfig(data)
+                # Enqueue the task (without starting it)
+                queued_task = self.queue_manager.queued_generator(
+                    self.llm_pipeline.__call__,
+                    pass_task_id=isinstance(
+                        self.llm_pipeline,  # type: ignore
+                        ConcurrentEngineProtocol
+                    ),
+                )
+                # task_id and interrupt_event are created by the queued_generator
+                task_id = queued_task.task_id
+                await websocket.send_json(
+                    {
+                        "status": TaskStatus.STARTING,
+                        "task_id": task_id,
+                    }
+                )
+                # Start the generation task
+                sampling_dict = self.sampling_settings_cls.model_validate(
+                    gen_config,
+                    strict=False,
+                )
+                try:
+                    async for step_info in queued_task(
+                        conversation_id,
+                        gen_config.prompt,
+                        gen_config.system_prompt,
+                        gen_config.reply_prefix,
+                        sampling_dict,
                     ):
-                        if response["response"] == "waiting":
-                            await websocket.send_json(response)
-                        elif response["response"] == "success":
-                            reply += response["msg"]
-                            await websocket.send_json(response)
-                        elif response["response"] == "abort":
-                            await websocket.send_json(response)
-                            break
-                        else:
-                            raise ValueError(
-                                f"Invalid response: {response['response']}"
+                        if "status" not in step_info:  # Task's return value.
+                            await websocket.send_json(
+                                {
+                                    "task_id": task_id,
+                                    "status": TaskStatus.RUNNING,
+                                    "tokens": step_info,
+                                }
                             )
-                    messages.append({"role": "assistant", "content": reply})
+                            continue
+                        if (
+                            step_info["status"] == TaskStatus.WAITING
+                        ):  # Queuing info returned
+                            await websocket.send_json(step_info)
+                            continue
+                        if (
+                            step_info["status"] != TaskStatus.RUNNING
+                        ):  # Queuing info returned
+                            await websocket.send_json(step_info)
+                            break
                     await websocket.send_json(
                         {
-                            "request_id": request_id,
-                            "response": "end",
-                            "msg": "",
+                            "task_id": task_id,
+                            "status": TaskStatus.FINISHED,
                         }
                     )
-            except WebSocketDisconnect:
-                print("Client disconnected", flush=True)
-            finally:
-                await websocket.close()
+                except asyncio.CancelledError as e:
+                    logging.info(e)
+                    await websocket.send_json(
+                        {
+                            "status": TaskStatus.ABORTED,
+                            "task_id": task_id,
+                        }
+                )
+                except Exception as e:  # pylint: disable=broad-except
+                    logging.error(e)
+                    await websocket.send_json(
+                        {
+                            "status": TaskStatus.ERROR,
+                            "message": str(e),  ### loggging
+                        }
+                    )
+        except WebSocketDisconnect:
+            print("Client disconnected", flush=True)
+        finally:
+            await websocket.close()
 
-        class AbortRequest(BaseModel):
-            """Abort request"""
+    class AbortRequest(BaseModel):
+        """Abort request"""
 
-            request_id: str
+        task_id: str
 
-        @router.post("/abort")
-        async def abort(request: AbortRequest):
-            """Abort generation"""
-            await self.llm.abort(request.request_id)
+    async def abort(self, request: AbortRequest):
+        """Abort generation"""
+        print(f"ENTER ABORT Aborting request {request.task_id}")
+        async with self.start_abort_lock:
+            print(f"Aborting request {request.task_id}")
+            await self.queue_manager.abort_task(request.task_id)
 
-        return router

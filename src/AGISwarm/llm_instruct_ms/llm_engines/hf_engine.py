@@ -1,21 +1,13 @@
 """ LLM Instruct Model Inference """
 
-import asyncio
-from functools import partial
 from threading import Thread
-from typing import cast
+from typing import Dict, List, cast
 
 import torch
 import transformers  # type: ignore
 from pydantic import Field
 
-from .utils import (
-    EngineProtocol,
-    SamplingParams,
-    abort_generation_request,
-    generation_request_queued_func,
-    prepare_prompt,
-)
+from .utils import EngineProtocol, SamplingParams, prepare_prompt
 
 SUPPORTED_MODELS = [
     "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -55,6 +47,7 @@ class HFSamplingParams(SamplingParams):
     repetition_penalty: float = Field(default=1.2, description="Repetition penalty")
 
 
+# pylint: disable=too-few-public-methods
 class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-name
     """LLM Instruct Model Inference"""
 
@@ -79,12 +72,10 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
                 },
             ),
         )
-        self.current_requests = {}
+        self.conversations: Dict[str, List[Dict]] = {}
 
-    @partial(generation_request_queued_func, wait_time=0.001)
     async def generate(
         self,
-        request_id: str,
         messages: list[dict],
         reply_prefix: str = "",
         sampling_params: HFSamplingParams = HFSamplingParams(),
@@ -105,11 +96,37 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
             | sampling_params.model_dump(),
         )
         thread.start()
-        yield {"request_id": request_id, "response": "success", "msg": reply_prefix}
+        if reply_prefix:
+            yield reply_prefix
         for new_text in streamer:
-            await asyncio.sleep(0.001)
-            yield {"request_id": request_id, "response": "success", "msg": new_text}
+            yield cast(str, new_text)
 
-    async def abort(self, request_id: str):
-        """Abort generation"""
-        abort_generation_request(request_id)
+    # pylint: disable=too-many-arguments
+    async def __call__(
+        self,
+        conversation_id: str,
+        prompt: str,
+        system_prompt: str,
+        reply_prefix: str,
+        sampling_params: HFSamplingParams,
+    ):
+        if system_prompt != "":
+            self.conversations[conversation_id].append(
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                }
+            )
+        self.conversations[conversation_id].append({"role": "user", "content": prompt})
+        reply: str = ""
+        async for response in self.generate(
+            self.conversations[conversation_id],
+            reply_prefix,
+            sampling_params,
+        ):
+            reply += response
+            yield response
+        self.conversations[conversation_id].append(
+            {"role": "assistant", "content": reply}
+        )
+        yield ""
