@@ -1,21 +1,13 @@
 """ LLM Instruct Model Inference """
 
-import asyncio
-from functools import partial
 from threading import Thread
-from typing import cast
+from typing import Dict, List, cast
 
 import torch
 import transformers  # type: ignore
 from pydantic import Field
 
-from .utils import (
-    EngineProtocol,
-    SamplingParams,
-    abort_generation_request,
-    generation_request_queued_func,
-    prepare_prompt,
-)
+from .engine import Engine, SamplingParams, prepare_prompt
 
 SUPPORTED_MODELS = [
     "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -55,13 +47,14 @@ class HFSamplingParams(SamplingParams):
     repetition_penalty: float = Field(default=1.2, description="Repetition penalty")
 
 
-class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-name
+# pylint: disable=too-few-public-methods
+class HFEngine(Engine[HFSamplingParams]):  # pylint: disable=invalid-name
     """LLM Instruct Model Inference"""
 
     def __init__(
         self,
-        model_name: str = "IlyaGusev/saiga_llama3_8b",
-        tokenizer_name: str = "meta-llama/Meta-Llama-3-8B-Instruct",
+        hf_model_name: str,
+        tokenizer_name: str | None,
     ):
 
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
@@ -69,22 +62,20 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
             transformers.TextGenerationPipeline,
             transformers.pipeline(
                 task="text-generation",
-                model=model_name,
+                model=hf_model_name,
                 device_map="auto",
                 tokenizer=self.tokenizer,
                 model_kwargs={
                     "quantization_config": (
-                        BNB_CONFIG if MODEL_IS_4bit[model_name] else None
+                        BNB_CONFIG if MODEL_IS_4bit[hf_model_name] else None
                     )
                 },
             ),
         )
-        self.current_requests = {}
+        self.conversations: Dict[str, List[Dict]] = {}
 
-    @partial(generation_request_queued_func, wait_time=0.001)
     async def generate(
         self,
-        request_id: str,
         messages: list[dict],
         reply_prefix: str = "",
         sampling_params: HFSamplingParams = HFSamplingParams(),
@@ -105,11 +96,7 @@ class HFEngine(EngineProtocol[HFSamplingParams]):  # pylint: disable=invalid-nam
             | sampling_params.model_dump(),
         )
         thread.start()
-        yield {"request_id": request_id, "response": "success", "msg": reply_prefix}
+        if reply_prefix:
+            yield reply_prefix
         for new_text in streamer:
-            await asyncio.sleep(0.001)
-            yield {"request_id": request_id, "response": "success", "msg": new_text}
-
-    async def abort(self, request_id: str):
-        """Abort generation"""
-        abort_generation_request(request_id)
+            yield cast(str, new_text)

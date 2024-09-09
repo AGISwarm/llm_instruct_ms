@@ -1,0 +1,12 @@
+%YAML 1.1
+---
+hf_model_name: !!str SanctumAI/Meta-Llama-3.1-8B-Instruct-GGUF
+tokenizer_name: meta-llama/Meta-Llama-3-8B-Instruct
+
+engine: !!str VLLMEngine
+engine_config:
+  filename: meta-llama-3.1-8b-instruct.Q2_K.gguf
+
+defaults:
+  - gui_config: default
+  - uvicorn_config: default

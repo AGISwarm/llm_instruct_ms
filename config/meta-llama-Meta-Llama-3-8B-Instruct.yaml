@@ -1,16 +1,12 @@
 %YAML 1.1
 ---
+
+hf_model_name: !!str "meta-llama/Meta-Llama-3-8B-Instruct"
+tokenizer_name: !!str "meta-llama/Meta-Llama-3-8B-Instruct"
+
 engine: !!str VLLMEngine
+engine_config:
 
-model_name: !!str "meta-llama/Meta-Llama-3-8B-Instruct"
-
-host: !!str "127.0.0.1"
-port: !!int 8000
-gui_title: !!str "meta-llama/Meta-Llama-3-8B-Instruct"
-
-default_max_new_tokens: !!int 1000
-default_temperature: !!float 0.6
-default_top_p: !!float 0.95
-default_repetition_penalty: !!float 1.2
-default_frequency_penalty: !!float 0.0
-default_presence_penalty: !!float 0.0
+defaults:
+  - gui_config: default
+  - uvicorn_config: default

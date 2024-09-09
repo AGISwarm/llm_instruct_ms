@@ -1,25 +1,30 @@
 """Main module for the LLM instruct microservice"""
 
-from argparse import ArgumentParser
+import os
+from pathlib import Path
 
+import hydra
 import uvicorn
 
 from .app import LLMInstructApp
-from .settings import LLMInstructSettings
+from .typing import LLMInstructConfig
 
 
-def main():
+@hydra.main(
+    config_path=str(Path(os.getcwd()) / "config"),
+)
+def main(config: LLMInstructConfig):
     """Main function"""
-    parser = ArgumentParser()
-    parser.add_argument("--config", type=str, help="Path to the configuration file")
 
-    args = parser.parse_args()
-    yaml_path = args.config
-
-    settings = LLMInstructSettings.from_yaml(yaml_path)
-    llm_instruct_app = LLMInstructApp(settings)
-    uvicorn.run(llm_instruct_app.app, host=settings.host, port=settings.port)
+    llm_instruct_app = LLMInstructApp(config)
+    uvicorn.run(
+        llm_instruct_app.app,
+        host=config.uvicorn_config.host,
+        port=config.uvicorn_config.port,
+        log_level=config.uvicorn_config.log_level,
+        loop=config.uvicorn_config.loop,
+    )
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
