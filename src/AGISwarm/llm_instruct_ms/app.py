@@ -92,8 +92,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                 queued_task = self.queue_manager.queued_generator(
                     self.llm_pipeline.__call__,
                     pass_task_id=isinstance(
-                        self.llm_pipeline,  # type: ignore
-                        ConcurrentEngineProtocol
+                        self.llm_pipeline, ConcurrentEngineProtocol  # type: ignore
                     ),
                 )
                 # task_id and interrupt_event are created by the queued_generator
@@ -149,7 +148,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                             "status": TaskStatus.ABORTED,
                             "task_id": task_id,
                         }
-                )
+                    )
                 except Exception as e:  # pylint: disable=broad-except
                     logging.error(e)
                     await websocket.send_json(
@@ -174,4 +173,3 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
         async with self.start_abort_lock:
             print(f"Aborting request {request.task_id}")
             await self.queue_manager.abort_task(request.task_id)
-

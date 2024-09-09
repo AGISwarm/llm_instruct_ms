@@ -23,10 +23,10 @@ class VLLMEngine(ConcurrentEngineProtocol[VLLMSamplingParams]):
     """LLM Instruct Model Inference using VLLM"""
 
     def __init__(
-        self, 
-        hf_model_name: str, 
+        self,
+        hf_model_name: str,
         filename: str | None = None,
-        tokenizer_name: str | None = None
+        tokenizer_name: str | None = None,
     ):
         if filename is not None:
             model = hf_hub_download(hf_model_name, filename)
