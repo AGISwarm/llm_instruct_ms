@@ -20,6 +20,7 @@ dependencies = [
     "pydantic_settings",
     "ruamel.yaml",
     "hydra-core",
+    "AGISwarm.asyncio_queue_manager",
 ]
 [project.optional-dependencies]
 vllm = ["vllm"]
