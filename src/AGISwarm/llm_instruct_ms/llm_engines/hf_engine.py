@@ -6,8 +6,9 @@ from typing import Dict, List, cast
 import torch
 import transformers  # type: ignore
 from pydantic import Field
+from transformers import AutoTokenizer  # type: ignore
 
-from .engine import Engine, SamplingParams, prepare_prompt
+from .engine import Engine, SamplingParams
 
 SUPPORTED_MODELS = [
     "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -57,7 +58,9 @@ class HFEngine(Engine[HFSamplingParams]):  # pylint: disable=invalid-name
         tokenizer_name: str | None,
     ):
 
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
+        self.conversations: Dict[str, List[Dict]] = {}
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name or hf_model_name)
+
         self.pipeline = cast(
             transformers.TextGenerationPipeline,
             transformers.pipeline(
@@ -72,7 +75,6 @@ class HFEngine(Engine[HFSamplingParams]):  # pylint: disable=invalid-name
                 },
             ),
         )
-        self.conversations: Dict[str, List[Dict]] = {}
 
     async def generate(
         self,
@@ -84,7 +86,7 @@ class HFEngine(Engine[HFSamplingParams]):  # pylint: disable=invalid-name
         streamer = transformers.TextIteratorStreamer(
             self.tokenizer, skip_prompt=True, skip_special_tokens=True  # type: ignore
         )
-        prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)
+        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
         thread = Thread(
             target=self.pipeline,
             kwargs={

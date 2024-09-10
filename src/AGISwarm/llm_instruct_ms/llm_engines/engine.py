@@ -1,9 +1,11 @@
 """Utility functions for LLM engines"""
 
+import uuid
 from abc import abstractmethod
 from typing import Dict, Generic, List, TypeVar, cast
 
 from pydantic import BaseModel
+from transformers import PreTrainedTokenizerBase
 
 
 class SamplingParams(BaseModel):
@@ -20,7 +22,38 @@ _SamplingParams_contra = TypeVar(
 
 
 # pylint: disable=too-few-public-methods
-class Engine(Generic[_SamplingParams_contra]):
+class PreparePromptMixin:
+    """Prepare prompt mixin"""
+
+    def prepare_prompt(
+        self,
+        processor: PreTrainedTokenizerBase,
+        messages: List[Dict[str, str]],
+        reply_prefix: str = "",
+    ):
+        """Prepare prompt for model"""
+        reply_prefix += " "
+        messages.append({"role": "assistant", "content": reply_prefix.strip()})
+        eot_uuid = "eot_" + str(uuid.uuid4())
+        prompt = (
+            cast(
+                str,
+                processor.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    # continue_final_message=True,
+                    add_generation_prompt=False,
+                ),
+            )
+            + eot_uuid
+        )
+        prompt = prompt.replace(processor.eos_token + eot_uuid, "")
+        prompt = prompt.replace(eot_uuid, "")
+        return prompt
+
+
+# pylint: disable=too-few-public-methods
+class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
@@ -34,6 +67,8 @@ class Engine(Generic[_SamplingParams_contra]):
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
     ):
+        if conversation_id not in self.conversations:
+            self.conversations[conversation_id] = []
         if system_prompt != "":
             self.conversations[conversation_id].append(
                 {
@@ -67,7 +102,7 @@ class Engine(Generic[_SamplingParams_contra]):
 
 
 # pylint: disable=too-few-public-methods
-class ConcurrentEngine(Generic[_SamplingParams_contra]):
+class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Concurrent engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
@@ -113,26 +148,3 @@ class ConcurrentEngine(Generic[_SamplingParams_contra]):
     ):
         """Generate text from prompt"""
         yield str()
-
-
-def prepare_prompt(
-    tokenizer: object,
-    messages: List[Dict[str, str]],
-    reply_prefix: str | None = None,
-    tokenize: bool = False,
-):
-    """Prepare prompt for model"""
-    if reply_prefix == "":
-        reply_prefix = None
-    prompt = cast(
-        str,
-        tokenizer.apply_chat_template(  # type: ignore
-            messages,
-            tokenize=tokenize,
-            add_generation_prompt=reply_prefix is None,
-        ),
-    ) + ("$" if reply_prefix else "")
-    if reply_prefix:
-        prompt = prompt.replace("<|eot_id|>$", "<|eot_id|>assistant\n\n" + reply_prefix)
-
-    return prompt

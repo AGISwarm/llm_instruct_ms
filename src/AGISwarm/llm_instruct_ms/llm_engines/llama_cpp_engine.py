@@ -4,9 +4,9 @@ from typing import Dict, List, cast
 
 from llama_cpp import CreateCompletionStreamResponse, Llama
 from pydantic import Field
-from transformers import AutoTokenizer  # type: ignore
+from transformers import PreTrainedTokenizer
 
-from .engine import Engine, SamplingParams, prepare_prompt
+from .engine import Engine, SamplingParams
 
 
 class LlamaCppSamplingParams(SamplingParams):
@@ -31,7 +31,7 @@ class LlamaCppEngine(Engine[LlamaCppSamplingParams]):
         self.llama = Llama.from_pretrained(
             hf_model_name, filename=filename, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx
         )
-        self.tokenizer: object = AutoTokenizer.from_pretrained(
+        self.tokenizer: PreTrainedTokenizer = PreTrainedTokenizer.from_pretrained(
             tokenizer_name or hf_model_name
         )
         self.conversations: Dict[str, List[Dict]] = {}
@@ -52,7 +52,7 @@ class LlamaCppEngine(Engine[LlamaCppSamplingParams]):
         sampling_params: LlamaCppSamplingParams = LlamaCppSamplingParams(),
     ):
         """Generate text from prompt"""
-        prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)
+        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
         sampling_params_dict = self.get_sampling_params(sampling_params)
         if reply_prefix:
             yield reply_prefix

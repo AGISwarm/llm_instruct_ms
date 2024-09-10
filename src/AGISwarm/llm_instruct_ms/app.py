@@ -39,7 +39,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
         self.sampling_settings_cls = ENGINE_SAMPLING_PARAMS_MAP[config.engine]
         self.queue_manager = AsyncIOQueueManager(
             max_concurrent_tasks=5,
-            sleep_time=0.0001,
+            sleep_time=0,
         )
         self.start_abort_lock = asyncio.Lock()
         self.setup_routes()
@@ -82,8 +82,8 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
     async def generate(self, websocket: WebSocket):  # type: ignore
         """WebSocket endpoint"""
         await websocket.accept()
+        conversation_id = str(uuid.uuid4())
         try:
-            conversation_id = str(uuid.uuid4())
             while True:
                 data: Dict[str, Any] = await websocket.receive_json()
                 gen_config = SamplingConfig(data)
@@ -115,6 +115,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                         gen_config.reply_prefix,
                         sampling_dict,
                     ):
+                        await asyncio.sleep(0)
                         if "status" not in step_info:  # Task's return value.
                             await websocket.send_json(
                                 {
@@ -159,6 +160,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
         except WebSocketDisconnect:
             print("Client disconnected", flush=True)
         finally:
+            self.llm_pipeline.conversations.pop(conversation_id, None)
             await websocket.close()
 
     class AbortRequest(BaseModel):

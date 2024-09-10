@@ -8,7 +8,7 @@ import vllm  # type: ignore
 from huggingface_hub import hf_hub_download
 from pydantic import Field
 
-from .engine import ConcurrentEngine, SamplingParams, prepare_prompt
+from .engine import ConcurrentEngine, SamplingParams
 
 
 class VLLMSamplingParams(SamplingParams):
@@ -32,6 +32,7 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
             model = hf_hub_download(hf_model_name, filename)
         else:
             model = hf_model_name
+        self.conversations: Dict[str, List[Dict]] = {}
         self.model = vllm.AsyncLLMEngine.from_engine_args(
             vllm.AsyncEngineArgs(
                 model=model,
@@ -44,7 +45,6 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
         )
         logging.info("Model loaded")
         self.tokenizer = asyncio.run(self.model.get_tokenizer())
-        self.conversations: Dict[str, List[Dict]] = {}
 
     def get_sampling_params(
         self, sampling_params: VLLMSamplingParams
@@ -65,12 +65,12 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
     async def generate(
         self,
         messages: list[dict],
-        reply_prefix: str | None,
+        reply_prefix: str,
         sampling_params: VLLMSamplingParams,
         task_id: str,
     ):
         """Generate text from prompt"""
-        prompt = prepare_prompt(self.tokenizer, messages, reply_prefix)
+        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
         vllm_sampling_params = self.get_sampling_params(sampling_params)
         current_len = 0
         if reply_prefix:
