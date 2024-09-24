@@ -6,6 +6,7 @@ from typing import Dict, List, cast
 
 import vllm  # type: ignore
 from huggingface_hub import hf_hub_download
+from PIL import Image
 from pydantic import Field
 
 from .engine import ConcurrentEngine, SamplingParams
@@ -33,6 +34,7 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
         else:
             model = hf_model_name
         self.conversations: Dict[str, List[Dict]] = {}
+        self.images: Dict[str, List[Image.Image]] = {}
         self.model = vllm.AsyncLLMEngine.from_engine_args(
             vllm.AsyncEngineArgs(
                 model=model,
@@ -41,6 +43,7 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
                 tensor_parallel_size=2,
                 gpu_memory_utilization=1.0,
                 trust_remote_code=True,
+                limit_mm_per_prompt={"image": 4},
             )
         )
         logging.info("Model loaded")
@@ -65,6 +68,7 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
     async def generate(
         self,
         messages: list[dict],
+        images: List[Image.Image],
         reply_prefix: str,
         sampling_params: VLLMSamplingParams,
         task_id: str,
@@ -76,7 +80,12 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
         if reply_prefix:
             yield reply_prefix
         async for output in self.model.generate(
-            prompt, sampling_params=vllm_sampling_params, request_id=task_id
+            vllm.TextPrompt({
+                "prompt": prompt, 
+                "multi_modal_data": {"image": images}
+            }) if images else prompt,
+            sampling_params=vllm_sampling_params,
+            request_id=task_id,
         ):
             yield output.outputs[0].text[current_len:]
             current_len = len(output.outputs[0].text)

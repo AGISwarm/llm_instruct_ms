@@ -1,0 +1,12 @@
+%YAML 1.1
+---
+
+hf_model_name: !!str "deepvk/llava-saiga-8b"
+tokenizer_name:
+
+engine: !!str VLLMEngine
+engine_config:
+
+defaults:
+  - gui_config: default
+  - uvicorn_config: default

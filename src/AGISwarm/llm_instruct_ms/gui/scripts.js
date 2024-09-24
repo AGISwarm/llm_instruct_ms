@@ -14,6 +14,7 @@ function resetForm() {
     document.getElementById('system_prompt').value = DEFAULT_SYSTEM_PROMPT;
 }
 let currentRequestID = '';
+let inserted_images = [];
 
 
 function disableGenerateButton() {
@@ -131,6 +132,7 @@ function sendMessage() {
         "prompt": prompt,
         "reply_prefix": reply_prefix,
         "system_prompt": system_prompt,
+        "images": inserted_images.map(img => img.src),
         "max_new_tokens": parseInt(max_new_tokens),
         "temperature": parseFloat(temperature),
         "top_p": parseFloat(top_p),
@@ -199,5 +201,23 @@ document.addEventListener('click', (event) => {
     const target = event.target;
     if (!configContainer.contains(target) && !menuToggle.contains(target)) {
         configContainer.classList.remove('show');
+    }
+});
+document.addEventListener('paste', function(event) {
+    var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+    
+    for (var index in items) {
+        var item = items[index];
+        if (item.kind === 'file') {
+            var blob = item.getAsFile();
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                var img = document.createElement("img");
+                img.src = event.target.result;
+                document.body.appendChild(img);  // Append to body or another container
+                inserted_images.push(img);
+            };
+            reader.readAsDataURL(blob);
+        }
     }
 });

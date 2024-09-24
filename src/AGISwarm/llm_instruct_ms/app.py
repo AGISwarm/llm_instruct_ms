@@ -1,8 +1,11 @@
 """Main module for the LLM instruct microservice"""
 
 import asyncio
+import base64
 import logging
+import traceback
 import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, cast
 
@@ -12,6 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from omegaconf import OmegaConf
+from PIL import Image
 from pydantic import BaseModel
 
 from .llm_engines import ConcurrentEngine, Engine
@@ -87,6 +91,16 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             while True:
                 data: Dict[str, Any] = await websocket.receive_json()
                 gen_config = SamplingConfig(data)
+                images: list[Image.Image] = [
+                    Image.open(
+                        BytesIO(
+                            base64.b64decode(
+                                image.replace("data:image/png;base64,", "")
+                            )
+                        )
+                    ).convert("RGB")
+                    for image in gen_config.images
+                ]
                 # Enqueue the task (without starting it)
                 queued_task = self.queue_manager.queued_generator(
                     self.llm_pipeline.__call__,
@@ -113,6 +127,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                         gen_config.prompt,
                         gen_config.system_prompt,
                         gen_config.reply_prefix,
+                        images,
                         sampling_dict,
                     ):
                         await asyncio.sleep(0)
@@ -151,6 +166,8 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logging.error(e)
+                    traceback.print_exc()
+                    traceback.print_stack()
                     await websocket.send_json(
                         {
                             "status": TaskStatus.ERROR,

@@ -4,6 +4,7 @@ import uuid
 from abc import abstractmethod
 from typing import Dict, Generic, List, TypeVar, cast
 
+from PIL import Image
 from pydantic import BaseModel
 from transformers import PreTrainedTokenizerBase
 
@@ -57,6 +58,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
+    images: Dict[str, List[Image.Image]]
 
     # pylint: disable=too-many-arguments
     async def __call__(
@@ -65,8 +67,13 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
         prompt: str,
         system_prompt: str,
         reply_prefix: str,
+        images: List[Image.Image],
         sampling_params: _SamplingParams_contra,
     ):
+        cur_img_cnt = len(self.images)
+        prompt = "\n".join(
+            ["<image>" for i in range(len(images))] + [prompt]
+        )
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
         if system_prompt != "":
@@ -77,9 +84,13 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
                 }
             )
         self.conversations[conversation_id].append({"role": "user", "content": prompt})
+        if conversation_id not in self.images:
+            self.images[conversation_id] = []
+        self.images[conversation_id].extend(images)
         reply: str = ""
         async for response in self.generate(
             self.conversations[conversation_id],
+            self.images[conversation_id],
             reply_prefix,
             sampling_params,
         ):
@@ -94,6 +105,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     async def generate(
         self,
         messages: List[Dict[str, str]],
+        images: List[Image.Image],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
     ):
@@ -106,6 +118,7 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Concurrent engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
+    images: Dict[str, List[Image.Image]]
 
     # pylint: disable=too-many-arguments
     async def __call__(
@@ -114,9 +127,14 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
         prompt: str,
         system_prompt: str,
         reply_prefix: str,
+        images: List[Image.Image],
         sampling_params: _SamplingParams_contra,
         task_id: str,
     ):
+        cur_img_cnt = len(self.images)
+        prompt = "\n".join(
+            [f"<image>" for i in range(len(images))] + [prompt]
+        )
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
         if system_prompt != "":
@@ -127,9 +145,16 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
                 }
             )
         self.conversations[conversation_id].append({"role": "user", "content": prompt})
+        if conversation_id not in self.images:
+            self.images[conversation_id] = []
+        self.images[conversation_id].extend(images)
         reply: str = ""
         async for response in self.generate(
-            self.conversations[conversation_id], reply_prefix, sampling_params, task_id
+            self.conversations[conversation_id],
+            self.images[conversation_id],
+            reply_prefix,
+            sampling_params,
+            task_id,
         ):
             reply += response
             yield response
@@ -142,6 +167,7 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
     async def generate(
         self,
         messages: List[Dict[str, str]],
+        images: List[Image.Image],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
         task_id: str,

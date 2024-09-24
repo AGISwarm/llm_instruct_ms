@@ -65,6 +65,7 @@ class SamplingConfig(DictConfig):
     prompt: str
     system_prompt: str
     reply_prefix: str
+    images: list[str]
     max_new_tokens: int = 1000
     temperature: float = 0.6
     top_p: float = 0.95
