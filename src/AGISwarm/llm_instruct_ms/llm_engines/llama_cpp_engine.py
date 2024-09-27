@@ -3,6 +3,7 @@
 from typing import Dict, List, cast
 
 from llama_cpp import CreateCompletionStreamResponse, Llama
+from PIL import Image
 from pydantic import Field
 from transformers import PreTrainedTokenizer
 
@@ -48,11 +49,14 @@ class LlamaCppEngine(Engine[LlamaCppSamplingParams]):
     async def generate(
         self,
         messages: list[dict],
+        image: Image.Image | None = None,
         reply_prefix: str = "",
         sampling_params: LlamaCppSamplingParams = LlamaCppSamplingParams(),
     ):
         """Generate text from prompt"""
-        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
+        if image:
+            raise NotImplementedError("Image input not supported")
+        prompt = self.prepare_prompt(self.tokenizer, messages)
         sampling_params_dict = self.get_sampling_params(sampling_params)
         if reply_prefix:
             yield reply_prefix
