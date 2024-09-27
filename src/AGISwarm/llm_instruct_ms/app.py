@@ -98,9 +98,8 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             # Remove the header to get the raw base64 data
             base64_data = re.sub(mime_pattern, "", image_data)
             return base64_data
-        else:
-            # If there's no match, assume it's already raw base64 data
-            return image_data
+        # If there's no match, assume it's already raw base64 data
+        return image_data
 
     def base64_to_image(self, image: str) -> Image.Image:
         """Convert base64 image to PIL image"""
