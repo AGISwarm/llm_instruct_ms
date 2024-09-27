@@ -2,7 +2,7 @@
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, Generic, List, TypeVar, cast
+from typing import Dict, Generic, List, Optional, TypeVar, cast
 
 from PIL import Image
 from pydantic import BaseModel
@@ -30,11 +30,8 @@ class PreparePromptMixin:
         self,
         processor: PreTrainedTokenizerBase,
         messages: List[Dict[str, str]],
-        reply_prefix: str = "",
     ):
         """Prepare prompt for model"""
-        reply_prefix += " "
-        messages.append({"role": "assistant", "content": reply_prefix.strip()})
         eot_uuid = "eot_" + str(uuid.uuid4())
         prompt = (
             cast(
@@ -42,7 +39,6 @@ class PreparePromptMixin:
                 processor.apply_chat_template(
                     messages,
                     tokenize=False,
-                    # continue_final_message=True,
                     add_generation_prompt=False,
                 ),
             )
@@ -58,7 +54,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
-    images: Dict[str, List[Image.Image]]
+    image: Dict[str, Image.Image | None]
 
     # pylint: disable=too-many-arguments
     async def __call__(
@@ -67,13 +63,12 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
         prompt: str,
         system_prompt: str,
         reply_prefix: str,
-        images: List[Image.Image],
+        image: Optional[Image.Image],
         sampling_params: _SamplingParams_contra,
     ):
-        cur_img_cnt = len(self.images)
-        prompt = "\n".join(
-            ["<image>" for i in range(len(images))] + [prompt]
-        )
+        if image:
+            prompt = "<image>\n" + prompt if image else prompt
+            self.image[conversation_id] = image
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
         if system_prompt != "":
@@ -84,13 +79,11 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
                 }
             )
         self.conversations[conversation_id].append({"role": "user", "content": prompt})
-        if conversation_id not in self.images:
-            self.images[conversation_id] = []
-        self.images[conversation_id].extend(images)
+
         reply: str = ""
         async for response in self.generate(
             self.conversations[conversation_id],
-            self.images[conversation_id],
+            self.image[conversation_id],
             reply_prefix,
             sampling_params,
         ):
@@ -105,7 +98,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     async def generate(
         self,
         messages: List[Dict[str, str]],
-        images: List[Image.Image],
+        image: Optional[Image.Image],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
     ):
@@ -118,7 +111,7 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Concurrent engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
-    images: Dict[str, List[Image.Image]]
+    image: Dict[str, Image.Image | None]
 
     # pylint: disable=too-many-arguments
     async def __call__(
@@ -127,16 +120,16 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
         prompt: str,
         system_prompt: str,
         reply_prefix: str,
-        images: List[Image.Image],
+        image: Optional[Image.Image],
         sampling_params: _SamplingParams_contra,
         task_id: str,
     ):
-        cur_img_cnt = len(self.images)
-        prompt = "\n".join(
-            [f"<image>" for i in range(len(images))] + [prompt]
-        )
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
+            self.image[conversation_id] = None
+        if image:
+            prompt = "<image>\n" + prompt if image else prompt
+            self.image[conversation_id] = image
         if system_prompt != "":
             self.conversations[conversation_id].append(
                 {
@@ -145,29 +138,30 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
                 }
             )
         self.conversations[conversation_id].append({"role": "user", "content": prompt})
-        if conversation_id not in self.images:
-            self.images[conversation_id] = []
-        self.images[conversation_id].extend(images)
-        reply: str = ""
-        async for response in self.generate(
-            self.conversations[conversation_id],
-            self.images[conversation_id],
-            reply_prefix,
-            sampling_params,
-            task_id,
-        ):
-            reply += response
-            yield response
         self.conversations[conversation_id].append(
-            {"role": "assistant", "content": reply}
+            {"role": "assistant", "content": (reply_prefix + " ").strip()}
         )
-        yield ""
+        try:
+            async for response in self.generate(
+                self.conversations[conversation_id],
+                self.image[conversation_id],
+                reply_prefix,
+                sampling_params,
+                task_id,
+            ):
+                self.conversations[conversation_id][-1]["content"] += response
+                yield response
+        finally:
+            self.conversations[conversation_id][-2]["content"] = self.conversations[
+                conversation_id
+            ][-2]["content"].replace("<image>", "*seen_image*")
+            yield ""
 
     @abstractmethod
     async def generate(
         self,
         messages: List[Dict[str, str]],
-        images: List[Image.Image],
+        image: Optional[Image.Image],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
         task_id: str,

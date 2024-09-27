@@ -83,6 +83,10 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             )
         return FileResponse(Path(__file__).parent / "gui" / "current_index.html")
 
+    def base64_to_image(self, image: str) -> Image.Image:
+        """Convert base64 image to PIL image"""
+        return Image.open(BytesIO(base64.b64decode(image))).convert("RGB")
+
     async def generate(self, websocket: WebSocket):  # type: ignore
         """WebSocket endpoint"""
         await websocket.accept()
@@ -91,16 +95,13 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             while True:
                 data: Dict[str, Any] = await websocket.receive_json()
                 gen_config = SamplingConfig(data)
-                images: list[Image.Image] = [
-                    Image.open(
-                        BytesIO(
-                            base64.b64decode(
-                                image.replace("data:image/png;base64,", "")
-                            )
-                        )
-                    ).convert("RGB")
-                    for image in gen_config.images
-                ]
+                image: Image.Image | None = (
+                    self.base64_to_image(
+                        gen_config.image.replace("data:image/png;base64,", "")
+                    )
+                    if gen_config.image
+                    else None
+                )
                 # Enqueue the task (without starting it)
                 queued_task = self.queue_manager.queued_generator(
                     self.llm_pipeline.__call__,
@@ -127,11 +128,13 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                         gen_config.prompt,
                         gen_config.system_prompt,
                         gen_config.reply_prefix,
-                        images,
+                        image,
                         sampling_dict,
                     ):
                         await asyncio.sleep(0)
-                        if "status" not in step_info:  # Task's return value.
+                        if (
+                            not isinstance(step_info, dict) or "status" not in step_info
+                        ):  # Task's return value.
                             await websocket.send_json(
                                 {
                                     "task_id": task_id,
@@ -167,7 +170,6 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                 except Exception as e:  # pylint: disable=broad-except
                     logging.error(e)
                     traceback.print_exc()
-                    traceback.print_stack()
                     await websocket.send_json(
                         {
                             "status": TaskStatus.ERROR,

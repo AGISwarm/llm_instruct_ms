@@ -96,20 +96,21 @@ html {
     /* Ensure messages have a background color */
 }
 
-.message_container {
-    width: 100%;
-}
 .user-message,
 .system-message {
-    display: flex;
-    justify-content: flex-end;
-    align-self: flex-end;
     margin-left: auto;
     background-color: #2d2d2d;
-    text-align: right;
+    text-align: left;
     font-size: 1.7vh;
+    max-width: 80%; /* Adjust this value as needed */
+    padding: 10px;
+    border-radius: 10px;
 }
 
+.message-container {
+    display: flex;
+    flex-direction: column;
+}
 
 .system-message {
     background-color: #570b0b;
@@ -117,13 +118,17 @@ html {
 }
 
 .bot-message {
-    align-self: flex-start;
     background-color: #a89d9d;
     color: #000000;
     text-align: left;
-    margin-right: auto;
     font-size: 1.7vh;
+    margin-right: auto;
+    text-align: left;
+    max-width: 80%; /* Adjust this value as needed */
+    padding: 10px;
+    border-radius: 10px;
 }
+
 
 .input-container {
     display: flex;
@@ -220,4 +225,31 @@ output {
 
 #title {
     font-size: 3vh;
+}
+
+
+#image-preview {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.attached-img-container {
+    position: relative;
+    display: inline-block;
+}
+
+.remove-img-btn {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
 }

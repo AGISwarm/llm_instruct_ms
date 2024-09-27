@@ -1,0 +1,13 @@
+%YAML 1.1
+---
+
+hf_model_name: !!str "meta-llama/Llama-3.2-3B-Instruct"
+tokenizer_name: !!str "meta-llama/Llama-3.2-3B-Instruct"
+
+engine: !!str VLLMEngine
+engine_config:
+  max_model_len: 8192
+
+defaults:
+  - gui_config: default
+  - uvicorn_config: default

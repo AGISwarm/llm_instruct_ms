@@ -86,7 +86,7 @@ class HFEngine(Engine[HFSamplingParams]):  # pylint: disable=invalid-name
         streamer = transformers.TextIteratorStreamer(
             self.tokenizer, skip_prompt=True, skip_special_tokens=True  # type: ignore
         )
-        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
+        prompt = self.prepare_prompt(self.tokenizer, messages)
         thread = Thread(
             target=self.pipeline,
             kwargs={

@@ -14,7 +14,7 @@ function resetForm() {
     document.getElementById('system_prompt').value = DEFAULT_SYSTEM_PROMPT;
 }
 let currentRequestID = '';
-let inserted_images = [];
+let inserted_image = null;
 
 
 function disableGenerateButton() {
@@ -125,14 +125,28 @@ function sendMessage() {
     userMessage = document.createElement('pre');
     userMessage.classList.add('message');
     userMessage.classList.add('user-message');
+    // Create a separate container for image
     userMessage.textContent = prompt;
+    if (inserted_image !== null) {
+        let imageContainer = document.createElement('div');
+        imageContainer.classList.add('message-images');
+        image = inserted_image.cloneNode(true);
+        image.style.maxWidth = '500px';
+        image.style.height = 'auto';
+        image.style.marginRight = '5px';
+        image.style.marginBottom = '5px';
+        image.style.borderRadius = '5px';
+        imageContainer.appendChild(image);
+        userMessage.insertBefore(imageContainer, userMessage.firstChild);
+    }
     userMessageContainer.appendChild(userMessage);
+
     document.getElementById('chat-output').insertBefore(userMessageContainer, document.getElementById('chat-output').firstChild);
     ws.send(JSON.stringify({
         "prompt": prompt,
         "reply_prefix": reply_prefix,
         "system_prompt": system_prompt,
-        "images": inserted_images.map(img => img.src),
+        "image": inserted_image ? inserted_image.src : null,
         "max_new_tokens": parseInt(max_new_tokens),
         "temperature": parseFloat(temperature),
         "top_p": parseFloat(top_p),
@@ -143,6 +157,8 @@ function sendMessage() {
     document.getElementById('prompt').value = '';
     document.getElementById('system_prompt').value = '';
     document.getElementById('reply_prefix').value = '';
+    document.getElementById('image-preview').innerHTML = '';
+    inserted_image = null;
 }
 
 function sendButtonClick() {
@@ -203,19 +219,47 @@ document.addEventListener('click', (event) => {
         configContainer.classList.remove('show');
     }
 });
-document.addEventListener('paste', function(event) {
+
+document.addEventListener('paste', function (event) {
     var items = (event.clipboardData || event.originalEvent.clipboardData).items;
-    
+
     for (var index in items) {
         var item = items[index];
         if (item.kind === 'file') {
             var blob = item.getAsFile();
             var reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 var img = document.createElement("img");
                 img.src = event.target.result;
-                document.body.appendChild(img);  // Append to body or another container
-                inserted_images.push(img);
+
+                // Insert only one image
+                console.log(img.src);
+                if (!img.src.startsWith('data:image') || inserted_image !== null) {
+                    return;
+                }
+
+
+                img.style.maxWidth = '100px';
+                img.style.height = 'auto';
+                img.style.marginRight = '5px';
+                img.style.marginBottom = '5px';
+                img.style.borderRadius = '5px';
+
+                // Add remove button
+                var removeBtn = document.createElement("button");
+                removeBtn.innerHTML = "×";
+                removeBtn.className = "remove-img-btn";
+                removeBtn.onclick = function () {
+                    this.parentElement.remove();
+                    inserted_image = null;
+                };
+
+                var imgContainer = document.createElement("div");
+                imgContainer.className = "attached-img-container";
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(removeBtn);
+                document.getElementById('image-preview').appendChild(imgContainer);
+                inserted_image = img;
             };
             reader.readAsDataURL(blob);
         }

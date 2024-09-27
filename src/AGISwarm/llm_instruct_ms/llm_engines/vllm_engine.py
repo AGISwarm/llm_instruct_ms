@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Dict, List, cast
+from typing import Dict, List, Optional
 
 import vllm  # type: ignore
 from huggingface_hub import hf_hub_download
@@ -28,13 +28,14 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
         hf_model_name: str,
         filename: str | None = None,
         tokenizer_name: str | None = None,
+        **kwargs,
     ):
         if filename is not None:
             model = hf_hub_download(hf_model_name, filename)
         else:
             model = hf_model_name
         self.conversations: Dict[str, List[Dict]] = {}
-        self.images: Dict[str, List[Image.Image]] = {}
+        self.image: Dict[str, Image.Image | None] = {}
         self.model = vllm.AsyncLLMEngine.from_engine_args(
             vllm.AsyncEngineArgs(
                 model=model,
@@ -43,7 +44,7 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
                 tensor_parallel_size=2,
                 gpu_memory_utilization=1.0,
                 trust_remote_code=True,
-                limit_mm_per_prompt={"image": 4},
+                **kwargs,
             )
         )
         logging.info("Model loaded")
@@ -59,31 +60,31 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
             **sampling_params_dict,
             skip_special_tokens=True,
             truncate_prompt_tokens=True,
-            stop_token_ids=[
-                cast(int, self.tokenizer.eos_token_id),
-                cast(int, self.tokenizer.convert_tokens_to_ids("<|eot_id|>")),
-            ],
         )
 
+    # pylint: disable=too-many-arguments
     async def generate(
         self,
-        messages: list[dict],
-        images: List[Image.Image],
+        messages: List[Dict[str, str]],
+        image: Optional[Image.Image],
         reply_prefix: str,
         sampling_params: VLLMSamplingParams,
         task_id: str,
     ):
         """Generate text from prompt"""
-        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
+        prompt = self.prepare_prompt(self.tokenizer, messages)
         vllm_sampling_params = self.get_sampling_params(sampling_params)
         current_len = 0
         if reply_prefix:
-            yield reply_prefix
+            yield (reply_prefix + " ").strip()
         async for output in self.model.generate(
-            vllm.TextPrompt({
-                "prompt": prompt, 
-                "multi_modal_data": {"image": images}
-            }) if images else prompt,
+            (
+                vllm.TextPrompt(
+                    {"prompt": prompt, "multi_modal_data": {"image": image}}
+                )
+                if image
+                else prompt
+            ),
             sampling_params=vllm_sampling_params,
             request_id=task_id,
         ):
