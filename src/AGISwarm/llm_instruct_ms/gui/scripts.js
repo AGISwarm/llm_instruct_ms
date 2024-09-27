@@ -14,6 +14,7 @@ function resetForm() {
     document.getElementById('system_prompt').value = DEFAULT_SYSTEM_PROMPT;
 }
 let currentRequestID = '';
+let idle = true;
 let inserted_image = null;
 
 
@@ -23,14 +24,19 @@ function disableGenerateButton() {
 
 function enableGenerateButton() {
     document.getElementById('send-btn').style.backgroundColor = "#363d46";
-    document.getElementById('send-btn').textContent = "Send";
+    document.getElementById('send-btn').innerHTML = '<i class="fa fa-paper-plane"></i>';
     document.getElementById('send-btn').disabled = false;
+    idle = true;
 };
 
 function enableAbortButton() {
+    if (!idle) {
+        return;
+    }
     document.getElementById('send-btn').style.backgroundColor = "#363d46";
-    document.getElementById('send-btn').textContent = "Abort";
+    document.getElementById('send-btn').innerHTML = '<i class="fa fa-stop"></i>';
     document.getElementById('send-btn').disabled = false;
+    idle = false;
 }
 
 function updateBotMessage(message, replace = false) {
@@ -48,10 +54,10 @@ function updateBotMessage(message, replace = false) {
         chatOutput.insertBefore(botMessageContainer, chatOutput.firstChild);
     }
     if (replace) {
-        botMessage.textContent = message;
+        botMessage.innerHTML = message;
     }
     else {
-        botMessage.textContent += message;
+        botMessage.innerHTML += message;
     }
     botMessage.style.color = 'black';
     const isAtBottom = chatOutput.scrollHeight - chatOutput.clientHeight <= chatOutput.scrollTop + 1;
@@ -109,7 +115,7 @@ function sendMessage() {
     const repetition_penalty = document.getElementById('repetition_penalty').value;
     const frequency_penalty = document.getElementById('frequency_penalty').value;
     const presence_penalty = document.getElementById('presence_penalty').value;
-
+    console.log("Sending message: " + prompt);
     if (system_prompt != '') {
         systemMessageContainer = document.createElement('div');
         systemMessageContainer.classList.add('message-container');
@@ -138,15 +144,18 @@ function sendMessage() {
         image.style.borderRadius = '5px';
         imageContainer.appendChild(image);
         userMessage.insertBefore(imageContainer, userMessage.firstChild);
+
+        inserted_image = image.src;
     }
     userMessageContainer.appendChild(userMessage);
 
     document.getElementById('chat-output').insertBefore(userMessageContainer, document.getElementById('chat-output').firstChild);
+    console.log (inserted_image);
     ws.send(JSON.stringify({
         "prompt": prompt,
         "reply_prefix": reply_prefix,
         "system_prompt": system_prompt,
-        "image": inserted_image ? inserted_image.src : null,
+        "image": inserted_image,
         "max_new_tokens": parseInt(max_new_tokens),
         "temperature": parseFloat(temperature),
         "top_p": parseFloat(top_p),
@@ -163,10 +172,10 @@ function sendMessage() {
 
 function sendButtonClick() {
     document.getElementById('send-btn').disabled = true;
-    if (document.getElementById('send-btn').textContent === "Send") {
+    if (idle) {
         sendMessage();
     }
-    else if (document.getElementById('send-btn').textContent === "Abort") {
+    else {
         abortGeneration();
     }
 }
@@ -182,7 +191,7 @@ function abortGeneration() {
         .catch(error => console.error('Error aborting generation:', error));
     // Enable the send button
     document.getElementById('send-btn').style.backgroundColor = "#363d46";
-    document.getElementById('send-btn').textContent = "Send";
+    document.getElementById('send-btn').innerHTML = '<i class="fa fa-paper-plane"></i>';
     document.getElementById('send-btn').disabled = false;
     console.log("Generation aborted.");
 }
@@ -206,13 +215,6 @@ document.getElementById('system_prompt').addEventListener('keydown', enterSend);
 
 const menuToggle = document.getElementById('menu-toggle');
 const configContainer = document.querySelector('.config-container');
-document.addEventListener('DOMContentLoaded', function () {
-
-    menuToggle.addEventListener('click', () => {
-        configContainer.classList.toggle('show');
-    });
-
-});
 document.addEventListener('click', (event) => {
     const target = event.target;
     if (!configContainer.contains(target) && !menuToggle.contains(target)) {
@@ -265,3 +267,84 @@ document.addEventListener('paste', function (event) {
         }
     }
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+    menuToggle.addEventListener('click', () => {
+        configContainer.classList.toggle('show');
+    });
+
+    // Add image attachment functionality
+    const attachImageBtn = document.getElementById('attach-image');
+    const imageInput = document.createElement('input');
+    imageInput.type = 'file';
+    imageInput.accept = 'image/*';
+    imageInput.style.display = 'none';
+    document.body.appendChild(imageInput);
+
+    attachImageBtn.addEventListener('click', function() {
+        imageInput.click();
+    });
+
+    imageInput.addEventListener('change', function(event) {
+        console.log(event);
+        handleImageSelection(event.target.files[0]);
+    });
+});
+
+document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!configContainer.contains(target) && !menuToggle.contains(target)) {
+        configContainer.classList.remove('show');
+    }
+});
+
+document.addEventListener('paste', function (event) {
+    var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+    console.log(items);
+    for (var index in items) {
+        var item = items[index];
+        if (item.kind === 'file') {
+            var blob = item.getAsFile();
+            handleImageSelection(blob);
+            break;  // Only handle the first image
+        }
+    }
+});
+
+function handleImageSelection(file) {
+    if (file && file.type.startsWith('image/')) {
+        var reader = new FileReader();
+        reader.onload = function (event) {
+            var img = document.createElement("img");
+            img.src = event.target.result;
+
+            if (inserted_image !== null) {
+                // Remove existing image
+                document.getElementById('image-preview').innerHTML = '';
+            }
+
+            img.style.maxWidth = '100px';
+            img.style.height = 'auto';
+            img.style.marginRight = '5px';
+            img.style.marginBottom = '5px';
+            img.style.borderRadius = '5px';
+
+            // Add remove button
+            var removeBtn = document.createElement("button");
+            removeBtn.innerHTML = "×";
+            removeBtn.className = "remove-img-btn";
+            removeBtn.onclick = function () {
+                this.parentElement.remove();
+                inserted_image = null;
+            };
+
+            var imgContainer = document.createElement("div");
+            imgContainer.className = "attached-img-container";
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(removeBtn);
+            document.getElementById('image-preview').appendChild(imgContainer);
+            inserted_image = img;
+        };
+        reader.readAsDataURL(file);
+    }
+}

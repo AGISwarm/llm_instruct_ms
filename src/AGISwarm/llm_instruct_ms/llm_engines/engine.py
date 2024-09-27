@@ -130,6 +130,11 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
         if image:
             prompt = "<image>\n" + prompt if image else prompt
             self.image[conversation_id] = image
+            for message in self.conversations[conversation_id]:
+                if message["role"] == "user":
+                    message["content"] = message["content"].replace("<image>", "<seen_image>")
+        else:
+            self.image[conversation_id] = None
         if system_prompt != "":
             self.conversations[conversation_id].append(
                 {
@@ -152,9 +157,6 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
                 self.conversations[conversation_id][-1]["content"] += response
                 yield response
         finally:
-            self.conversations[conversation_id][-2]["content"] = self.conversations[
-                conversation_id
-            ][-2]["content"].replace("<image>", "*seen_image*")
             yield ""
 
     @abstractmethod

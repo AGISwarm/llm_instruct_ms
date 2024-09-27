@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import logging
+import re
 import traceback
 import uuid
 from io import BytesIO
@@ -83,8 +84,27 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             )
         return FileResponse(Path(__file__).parent / "gui" / "current_index.html")
 
+    @staticmethod
+    def remove_mime_header(image_data):
+        """
+        Remove the MIME type header from the image data and return the raw base64 data.
+        :return: the raw base64 data
+        """
+        # Regular expression to match the MIME type header
+        mime_pattern = r"^data:image/([a-zA-Z]+);base64,"
+        match = re.match(mime_pattern, image_data)
+
+        if match:
+            # Remove the header to get the raw base64 data
+            base64_data = re.sub(mime_pattern, "", image_data)
+            return base64_data
+        else:
+            # If there's no match, assume it's already raw base64 data
+            return image_data
+
     def base64_to_image(self, image: str) -> Image.Image:
         """Convert base64 image to PIL image"""
+        image = self.remove_mime_header(image)
         return Image.open(BytesIO(base64.b64decode(image))).convert("RGB")
 
     async def generate(self, websocket: WebSocket):  # type: ignore
@@ -96,11 +116,7 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                 data: Dict[str, Any] = await websocket.receive_json()
                 gen_config = SamplingConfig(data)
                 image: Image.Image | None = (
-                    self.base64_to_image(
-                        gen_config.image.replace("data:image/png;base64,", "")
-                    )
-                    if gen_config.image
-                    else None
+                    self.base64_to_image(gen_config.image) if gen_config.image else None
                 )
                 # Enqueue the task (without starting it)
                 queued_task = self.queue_manager.queued_generator(
