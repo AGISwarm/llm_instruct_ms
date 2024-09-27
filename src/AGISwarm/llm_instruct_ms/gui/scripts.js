@@ -199,7 +199,7 @@ function abortGeneration() {
 function enterSend(event) {
     if (event.key === 'Enter' && !event.ctrlKey) {
         event.preventDefault();
-        if (document.getElementById('send-btn').textContent === "Send") {
+        if (idle){
             document.getElementById('send-btn').disabled = true;
             sendMessage();
         }
