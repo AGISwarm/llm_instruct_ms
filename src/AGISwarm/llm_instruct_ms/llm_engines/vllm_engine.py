@@ -40,14 +40,22 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
             vllm.AsyncEngineArgs(
                 model=model,
                 tokenizer=tokenizer_name or hf_model_name,
-                dtype="float16",
-                tensor_parallel_size=2,
-                gpu_memory_utilization=1.0,
                 trust_remote_code=True,
                 **kwargs,
             )
         )
         logging.info("Model loaded")
+        mm_cfg = asyncio.run(self.model.get_model_config()).multimodal_config
+        if mm_cfg is None:
+            self.image_prompt_enabled = False
+        elif len(mm_cfg.limit_per_prompt) == 0:
+            self.image_prompt_enabled = False
+            logging.warning("Model supports multimodal input but no limits are set")
+        else:
+            self.image_prompt_enabled = (
+                mm_cfg.limit_per_prompt["image"] is not None
+                and mm_cfg.limit_per_prompt["image"] > 0
+            )
         self.tokenizer = asyncio.run(self.model.get_tokenizer())
 
     def get_sampling_params(
@@ -72,17 +80,19 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
         task_id: str,
     ):
         """Generate text from prompt"""
-        prompt = self.prepare_prompt(self.tokenizer, messages)
+        if image and not self.image_prompt_enabled:
+            logging.warning("Image input not supported by this model")
+        prompt = self.prepare_prompt(self.tokenizer, messages)  # type: ignore
         vllm_sampling_params = self.get_sampling_params(sampling_params)
         current_len = 0
         if reply_prefix:
-            yield (reply_prefix + " ").strip()
+            yield reply_prefix
         async for output in self.model.generate(
             (
                 vllm.TextPrompt(
                     {"prompt": prompt, "multi_modal_data": {"image": image}}
                 )
-                if image
+                if image and self.image_prompt_enabled
                 else prompt
             ),
             sampling_params=vllm_sampling_params,

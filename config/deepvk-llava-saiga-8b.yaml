@@ -1,11 +1,16 @@
 %YAML 1.1
 ---
 
-hf_model_name: !!str "deepvk/llava-saiga-8b"
-tokenizer_name:
+hf_model_name: !!str deepvk/llava-saiga-8b # "alpindale/Llama-3.2-11B-Vision-Instruct"
+tokenizer_name: deepvk/llava-saiga-8b # alpindale/Llama-3.2-11B-Vision-Instruct
 
 engine: !!str VLLMEngine
 engine_config:
+  dtype: !!str float16
+  gpu_memory_utilization: !!float 1.0
+  tensor_parallel_size: !!int 2
+  max_model_len: 8192
+  limit_mm_per_prompt: {"image": 1}
 
 defaults:
   - gui_config: default

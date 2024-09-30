@@ -28,7 +28,7 @@ class PreparePromptMixin:
 
     def prepare_prompt(
         self,
-        processor: PreTrainedTokenizerBase,
+        tokenizer: PreTrainedTokenizerBase,
         messages: List[Dict[str, str]],
     ):
         """Prepare prompt for model"""
@@ -36,7 +36,7 @@ class PreparePromptMixin:
         prompt = (
             cast(
                 str,
-                processor.apply_chat_template(
+                tokenizer.apply_chat_template(
                     messages,
                     tokenize=False,
                     add_generation_prompt=False,
@@ -44,7 +44,7 @@ class PreparePromptMixin:
             )
             + eot_uuid
         )
-        prompt = prompt.replace(processor.eos_token + eot_uuid, "")
+        prompt = prompt.replace(tokenizer.eos_token + eot_uuid, "")
         prompt = prompt.replace(eot_uuid, "")
         return prompt
 
@@ -55,6 +55,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
 
     conversations: Dict[str, List[Dict[str, str]]]
     image: Dict[str, Image.Image | None]
+    image_prompt_enabled: bool
 
     # pylint: disable=too-many-arguments
     async def __call__(
@@ -124,6 +125,7 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
         sampling_params: _SamplingParams_contra,
         task_id: str,
     ):
+        reply_prefix = (reply_prefix + " ").strip()
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
             self.image[conversation_id] = None
@@ -146,7 +148,7 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
             )
         self.conversations[conversation_id].append({"role": "user", "content": prompt})
         self.conversations[conversation_id].append(
-            {"role": "assistant", "content": (reply_prefix + " ").strip()}
+            {"role": "assistant", "content": reply_prefix}
         )
         try:
             async for response in self.generate(

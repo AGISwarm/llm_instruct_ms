@@ -114,9 +114,6 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
             while True:
                 data: Dict[str, Any] = await websocket.receive_json()
                 gen_config = SamplingConfig(data)
-                image: Image.Image | None = (
-                    self.base64_to_image(gen_config.image) if gen_config.image else None
-                )
                 # Enqueue the task (without starting it)
                 queued_task = self.queue_manager.queued_generator(
                     self.llm_pipeline.__call__,
@@ -128,8 +125,8 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                 task_id = queued_task.task_id
                 await websocket.send_json(
                     {
-                        "status": TaskStatus.STARTING,
                         "task_id": task_id,
+                        "status": TaskStatus.STARTING,
                     }
                 )
                 # Start the generation task
@@ -137,6 +134,19 @@ class LLMInstructApp:  # pylint: disable=too-few-public-methods
                     gen_config,
                     strict=False,
                 )
+                image: Image.Image | None = (
+                    self.base64_to_image(gen_config.image) if gen_config.image else None
+                )
+
+                if image and not self.llm_pipeline.image_prompt_enabled:
+                    await websocket.send_json(
+                        {
+                            "task_id": task_id,
+                            "status": TaskStatus.WARNING,
+                            "message": "Image input not supported by this model",
+                        }
+                    )
+
                 try:
                     async for step_info in queued_task(
                         conversation_id,

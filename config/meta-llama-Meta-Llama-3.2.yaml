@@ -1,12 +1,14 @@
 %YAML 1.1
 ---
 
-hf_model_name: !!str "meta-llama/Llama-3.2-3B-Instruct"
-tokenizer_name: !!str "meta-llama/Llama-3.2-3B-Instruct"
+hf_model_name: !!str "meta-llama/Llama-3.2-1B-Instruct"
+tokenizer_name: !!str "meta-llama/Llama-3.2-1B-Instruct"
 
 engine: !!str VLLMEngine
 engine_config:
+  dtype: !!str float16
   max_model_len: 8192
+  gpu_memory_utilization: !!float 0.6
 
 defaults:
   - gui_config: default

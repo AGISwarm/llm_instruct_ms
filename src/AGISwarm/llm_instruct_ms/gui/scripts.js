@@ -71,9 +71,7 @@ function updateBotMessage(message, replace = false) {
 ws.onmessage = function (event) {
     // Send button is disabled until the response is received
     response_dict = JSON.parse(event.data);
-    console.log(response_dict);
     currentRequestID = JSON.parse(event.data)["task_id"];
-
     switch (response_dict["status"]) {
         case "starting":
             disableGenerateButton();
@@ -96,6 +94,11 @@ ws.onmessage = function (event) {
             return;
         case "running":
             updateBotMessage(response_dict["tokens"]);
+            enableAbortButton();
+            return;
+        case "warning":
+            console.log(response_dict["message"]);
+            updateBotMessage("<br>" + "<span style='color:orange;'>" + response_dict["message"] + "</span>" + "<br><br>");
             enableAbortButton();
             return;
     }
