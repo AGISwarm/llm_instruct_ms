@@ -2,7 +2,7 @@
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, Generic, List, Optional, TypeVar, cast
+from typing import AsyncGenerator, Dict, Generic, List, Optional, TypeVar, cast
 
 from PIL import Image
 from pydantic import BaseModel
@@ -41,7 +41,7 @@ class PreparePromptMixin:
                     tokenize=False,
                     add_generation_prompt=False,
                 ),
-            )
+            ).rstrip()
             + eot_uuid
         )
         prompt = prompt.replace(tokenizer.eos_token + eot_uuid, "")
@@ -66,7 +66,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
         reply_prefix: str,
         image: Optional[Image.Image],
         sampling_params: _SamplingParams_contra,
-    ):
+    ) -> AsyncGenerator[str, None]:
         if image:
             prompt = "<image>\n" + prompt if image else prompt
             self.image[conversation_id] = image
