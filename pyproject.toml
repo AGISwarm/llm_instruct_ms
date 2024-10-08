@@ -14,7 +14,7 @@ keywords = ["sample", "setuptools", "development"]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
     'numpy~=1.26.0',
-    "fastapi~=0.111.0",
+    "fastapi~=0.114.0",
     "uvicorn~=0.29.0",
     "pydantic~=2.9.0",
     "hydra-core~=1.3.2",
@@ -34,11 +34,11 @@ GUI = ["jinja2"]
 
 test = ['pytest~=8.2.1']
 analyze = [
-    'pyright~=1.1.364',
-    'pylint~=3.2.2',
-    'bandit~=1.7.8',
-    'black~=24.4.2',
-    'isort~=5.13.2',
+    'pyright',
+    'pylint',
+    'bandit',
+    'black',
+    'isort',
 ]
 build = ['setuptools', 'wheel', 'build']
 publish = ['twine']
