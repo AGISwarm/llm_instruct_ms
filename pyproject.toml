@@ -21,7 +21,7 @@ dependencies = [
     "AGISwarm.asyncio_queue_manager",
 ]
 [project.optional-dependencies]
-vllm = ["vllm==0.5.5"]
+vllm = ["vllm==0.6.2"]
 transformers = ["transformers"]
 llama-cpp = ["llama_cpp_python"]
 backends = [
