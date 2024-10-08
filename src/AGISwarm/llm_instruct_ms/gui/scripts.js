@@ -67,39 +67,56 @@ function updateBotMessage(message, replace = false) {
     }
 }
 
-
+currentStatus = "idle";
 ws.onmessage = function (event) {
     // Send button is disabled until the response is received
     response_dict = JSON.parse(event.data);
     currentRequestID = JSON.parse(event.data)["task_id"];
+
     switch (response_dict["status"]) {
         case "starting":
+            currentStatus = "starting";
+            updateBotMessage("<br>" + "<span style='color:blue;'>Starting generation...</span>" + "<br>");
             disableGenerateButton();
             return;
         case "finished":
+            currentStatus = "idle";
             enableGenerateButton();
             return;
         case "waiting":
-            queue_pos = response_dict["queue_pos"];
-            updateBotMessage("<br>" + "<span style='color:blue;'>You are in position " + queue_pos + " in the queue</span>", replace = true);
+            if (currentStatus != "waiting") {
+                updateBotMessage("", replace = true);
+            }
+            currentStatus = "waiting";
+            queue_pos = response_dict["content"]["queue_pos"];
+            updateBotMessage("<br>" + "<span style='color:blue;'>You are in position " + queue_pos + " in the queue</span>" + "<br>", replace = true);
             enableAbortButton();
             return;
         case "aborted":
+            currentStatus = "idle";
             updateBotMessage("<br>" + "<span style='color:red;'>Generation aborted</span>");
-            enableAbortButton();
+            enableGenerateButton();
             return;
         case "error":
+            currentStatus = "idle";
             updateBotMessage("<br>" + "<span style='color:red;'>Error in generation</span>");
             enableGenerateButton();
             return;
         case "running":
-            updateBotMessage(response_dict["tokens"]);
-            enableAbortButton();
+            if (currentStatus != "running") {
+                updateBotMessage("", replace = true);
+                enableAbortButton();
+            }
+            currentStatus = "running";
+            updateBotMessage(response_dict["content"]);
             return;
         case "warning":
-            console.log(response_dict["message"]);
-            updateBotMessage("<br>" + "<span style='color:orange;'>" + response_dict["message"] + "</span>" + "<br><br>");
-            enableAbortButton();
+            if (currentStatus != "running") {
+                updateBotMessage("", replace = true);
+                enableAbortButton();
+            }
+            currentStatus = "running";
+            updateBotMessage("<br>" + "<span style='color:orange;'>" + response_dict["content"] + "</span>" + "<br><br>");
             return;
     }
 };
