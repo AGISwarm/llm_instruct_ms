@@ -2,10 +2,11 @@
 
 import asyncio
 import logging
-from typing import Dict, List, cast
+from typing import Dict, List, Optional
 
 import vllm  # type: ignore
 from huggingface_hub import hf_hub_download
+from PIL import Image
 from pydantic import Field
 
 from .engine import ConcurrentEngine, SamplingParams
@@ -27,23 +28,34 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
         hf_model_name: str,
         filename: str | None = None,
         tokenizer_name: str | None = None,
+        **kwargs,
     ):
         if filename is not None:
             model = hf_hub_download(hf_model_name, filename)
         else:
             model = hf_model_name
         self.conversations: Dict[str, List[Dict]] = {}
+        self.image: Dict[str, Image.Image | None] = {}
         self.model = vllm.AsyncLLMEngine.from_engine_args(
             vllm.AsyncEngineArgs(
                 model=model,
                 tokenizer=tokenizer_name or hf_model_name,
-                dtype="float16",
-                tensor_parallel_size=2,
-                gpu_memory_utilization=1.0,
                 trust_remote_code=True,
+                **kwargs,
             )
         )
         logging.info("Model loaded")
+        mm_cfg = asyncio.run(self.model.get_model_config()).multimodal_config
+        if mm_cfg is None:
+            self.image_prompt_enabled = False
+        elif len(mm_cfg.limit_per_prompt) == 0:
+            self.image_prompt_enabled = False
+            logging.warning("Model supports multimodal input but no limits are set")
+        else:
+            self.image_prompt_enabled = (
+                mm_cfg.limit_per_prompt["image"] is not None
+                and mm_cfg.limit_per_prompt["image"] > 0
+            )
         self.tokenizer = asyncio.run(self.model.get_tokenizer())
 
     def get_sampling_params(
@@ -56,27 +68,35 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
             **sampling_params_dict,
             skip_special_tokens=True,
             truncate_prompt_tokens=True,
-            stop_token_ids=[
-                cast(int, self.tokenizer.eos_token_id),
-                cast(int, self.tokenizer.convert_tokens_to_ids("<|eot_id|>")),
-            ],
         )
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     async def generate(
         self,
-        messages: list[dict],
+        messages: List[Dict[str, str]],
+        image: Optional[Image.Image],
         reply_prefix: str,
         sampling_params: VLLMSamplingParams,
         task_id: str,
     ):
         """Generate text from prompt"""
-        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
+        if image and not self.image_prompt_enabled:
+            logging.warning("Image input not supported by this model")
+        prompt = self.prepare_prompt(self.tokenizer, messages)  # type: ignore
         vllm_sampling_params = self.get_sampling_params(sampling_params)
         current_len = 0
         if reply_prefix:
             yield reply_prefix
         async for output in self.model.generate(
-            prompt, sampling_params=vllm_sampling_params, request_id=task_id
+            (
+                vllm.TextPrompt(
+                    {"prompt": prompt, "multi_modal_data": {"image": image}}
+                )
+                if image and self.image_prompt_enabled
+                else prompt
+            ),
+            sampling_params=vllm_sampling_params,
+            request_id=task_id,
         ):
             yield output.outputs[0].text[current_len:]
             current_len = len(output.outputs[0].text)

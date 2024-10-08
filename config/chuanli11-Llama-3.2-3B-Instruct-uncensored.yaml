@@ -1,0 +1,17 @@
+%YAML 1.1
+---
+
+hf_model_name: !!str chuanli11/Llama-3.2-3B-Instruct-uncensored # "alpindale/Llama-3.2-11B-Vision-Instruct"
+tokenizer_name:  chuanli11/Llama-3.2-3B-Instruct-uncensored # alpindale/Llama-3.2-11B-Vision-Instruct
+
+engine: !!str VLLMEngine
+engine_config:
+  dtype: !!str float16
+  gpu_memory_utilization: !!float 1.0
+  tensor_parallel_size: !!int 2
+  max_model_len: 32768
+
+
+defaults:
+  - gui_config: default
+  - uvicorn_config: default

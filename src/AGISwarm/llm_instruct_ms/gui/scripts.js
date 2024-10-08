@@ -14,6 +14,8 @@ function resetForm() {
     document.getElementById('system_prompt').value = DEFAULT_SYSTEM_PROMPT;
 }
 let currentRequestID = '';
+let idle = true;
+let inserted_image = null;
 
 
 function disableGenerateButton() {
@@ -22,14 +24,19 @@ function disableGenerateButton() {
 
 function enableGenerateButton() {
     document.getElementById('send-btn').style.backgroundColor = "#363d46";
-    document.getElementById('send-btn').textContent = "Send";
+    document.getElementById('send-btn').innerHTML = '<i class="fa fa-paper-plane"></i>';
     document.getElementById('send-btn').disabled = false;
+    idle = true;
 };
 
 function enableAbortButton() {
+    if (!idle) {
+        return;
+    }
     document.getElementById('send-btn').style.backgroundColor = "#363d46";
-    document.getElementById('send-btn').textContent = "Abort";
+    document.getElementById('send-btn').innerHTML = '<i class="fa fa-stop"></i>';
     document.getElementById('send-btn').disabled = false;
+    idle = false;
 }
 
 function updateBotMessage(message, replace = false) {
@@ -47,10 +54,10 @@ function updateBotMessage(message, replace = false) {
         chatOutput.insertBefore(botMessageContainer, chatOutput.firstChild);
     }
     if (replace) {
-        botMessage.textContent = message;
+        botMessage.innerHTML = message;
     }
     else {
-        botMessage.textContent += message;
+        botMessage.innerHTML += message;
     }
     botMessage.style.color = 'black';
     const isAtBottom = chatOutput.scrollHeight - chatOutput.clientHeight <= chatOutput.scrollTop + 1;
@@ -60,36 +67,56 @@ function updateBotMessage(message, replace = false) {
     }
 }
 
-
+currentStatus = "idle";
 ws.onmessage = function (event) {
     // Send button is disabled until the response is received
     response_dict = JSON.parse(event.data);
-    console.log(response_dict);
     currentRequestID = JSON.parse(event.data)["task_id"];
 
     switch (response_dict["status"]) {
         case "starting":
+            currentStatus = "starting";
+            updateBotMessage("<br>" + "<span style='color:blue;'>Starting generation...</span>" + "<br>");
             disableGenerateButton();
             return;
         case "finished":
+            currentStatus = "idle";
             enableGenerateButton();
             return;
         case "waiting":
-            queue_pos = response_dict["queue_pos"];
-            updateBotMessage("<br>" + "<span style='color:blue;'>You are in position " + queue_pos + " in the queue</span>", replace = true);
+            if (currentStatus != "waiting") {
+                updateBotMessage("", replace = true);
+            }
+            currentStatus = "waiting";
+            queue_pos = response_dict["content"]["queue_pos"];
+            updateBotMessage("<br>" + "<span style='color:blue;'>You are in position " + queue_pos + " in the queue</span>" + "<br>", replace = true);
             enableAbortButton();
             return;
         case "aborted":
+            currentStatus = "idle";
             updateBotMessage("<br>" + "<span style='color:red;'>Generation aborted</span>");
-            enableAbortButton();
+            enableGenerateButton();
             return;
         case "error":
+            currentStatus = "idle";
             updateBotMessage("<br>" + "<span style='color:red;'>Error in generation</span>");
             enableGenerateButton();
             return;
         case "running":
-            updateBotMessage(response_dict["tokens"]);
-            enableAbortButton();
+            if (currentStatus != "running") {
+                updateBotMessage("", replace = true);
+                enableAbortButton();
+            }
+            currentStatus = "running";
+            updateBotMessage(response_dict["content"]);
+            return;
+        case "warning":
+            if (currentStatus != "running") {
+                updateBotMessage("", replace = true);
+                enableAbortButton();
+            }
+            currentStatus = "running";
+            updateBotMessage("<br>" + "<span style='color:orange;'>" + response_dict["content"] + "</span>" + "<br><br>");
             return;
     }
 };
@@ -108,7 +135,7 @@ function sendMessage() {
     const repetition_penalty = document.getElementById('repetition_penalty').value;
     const frequency_penalty = document.getElementById('frequency_penalty').value;
     const presence_penalty = document.getElementById('presence_penalty').value;
-
+    console.log("Sending message: " + prompt);
     if (system_prompt != '') {
         systemMessageContainer = document.createElement('div');
         systemMessageContainer.classList.add('message-container');
@@ -124,13 +151,31 @@ function sendMessage() {
     userMessage = document.createElement('pre');
     userMessage.classList.add('message');
     userMessage.classList.add('user-message');
+    // Create a separate container for image
     userMessage.textContent = prompt;
+    if (inserted_image !== null) {
+        let imageContainer = document.createElement('div');
+        imageContainer.classList.add('message-images');
+        image = inserted_image.cloneNode(true);
+        image.style.maxWidth = '500px';
+        image.style.height = 'auto';
+        image.style.marginRight = '5px';
+        image.style.marginBottom = '5px';
+        image.style.borderRadius = '5px';
+        imageContainer.appendChild(image);
+        userMessage.insertBefore(imageContainer, userMessage.firstChild);
+
+        inserted_image = image.src;
+    }
     userMessageContainer.appendChild(userMessage);
+
     document.getElementById('chat-output').insertBefore(userMessageContainer, document.getElementById('chat-output').firstChild);
+    console.log (inserted_image);
     ws.send(JSON.stringify({
         "prompt": prompt,
         "reply_prefix": reply_prefix,
         "system_prompt": system_prompt,
+        "image": inserted_image,
         "max_new_tokens": parseInt(max_new_tokens),
         "temperature": parseFloat(temperature),
         "top_p": parseFloat(top_p),
@@ -141,14 +186,16 @@ function sendMessage() {
     document.getElementById('prompt').value = '';
     document.getElementById('system_prompt').value = '';
     document.getElementById('reply_prefix').value = '';
+    document.getElementById('image-preview').innerHTML = '';
+    inserted_image = null;
 }
 
 function sendButtonClick() {
     document.getElementById('send-btn').disabled = true;
-    if (document.getElementById('send-btn').textContent === "Send") {
+    if (idle) {
         sendMessage();
     }
-    else if (document.getElementById('send-btn').textContent === "Abort") {
+    else {
         abortGeneration();
     }
 }
@@ -164,7 +211,7 @@ function abortGeneration() {
         .catch(error => console.error('Error aborting generation:', error));
     // Enable the send button
     document.getElementById('send-btn').style.backgroundColor = "#363d46";
-    document.getElementById('send-btn').textContent = "Send";
+    document.getElementById('send-btn').innerHTML = '<i class="fa fa-paper-plane"></i>';
     document.getElementById('send-btn').disabled = false;
     console.log("Generation aborted.");
 }
@@ -172,7 +219,7 @@ function abortGeneration() {
 function enterSend(event) {
     if (event.key === 'Enter' && !event.ctrlKey) {
         event.preventDefault();
-        if (document.getElementById('send-btn').textContent === "Send") {
+        if (idle){
             document.getElementById('send-btn').disabled = true;
             sendMessage();
         }
@@ -188,16 +235,136 @@ document.getElementById('system_prompt').addEventListener('keydown', enterSend);
 
 const menuToggle = document.getElementById('menu-toggle');
 const configContainer = document.querySelector('.config-container');
-document.addEventListener('DOMContentLoaded', function () {
-
-    menuToggle.addEventListener('click', () => {
-        configContainer.classList.toggle('show');
-    });
-
-});
 document.addEventListener('click', (event) => {
     const target = event.target;
     if (!configContainer.contains(target) && !menuToggle.contains(target)) {
         configContainer.classList.remove('show');
     }
 });
+
+document.addEventListener('paste', function (event) {
+    var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+
+    for (var index in items) {
+        var item = items[index];
+        if (item.kind === 'file') {
+            var blob = item.getAsFile();
+            var reader = new FileReader();
+            reader.onload = function (event) {
+                var img = document.createElement("img");
+                img.src = event.target.result;
+
+                // Insert only one image
+                console.log(img.src);
+                if (!img.src.startsWith('data:image') || inserted_image !== null) {
+                    return;
+                }
+
+
+                img.style.maxWidth = '100px';
+                img.style.height = 'auto';
+                img.style.marginRight = '5px';
+                img.style.marginBottom = '5px';
+                img.style.borderRadius = '5px';
+
+                // Add remove button
+                var removeBtn = document.createElement("button");
+                removeBtn.innerHTML = "×";
+                removeBtn.className = "remove-img-btn";
+                removeBtn.onclick = function () {
+                    this.parentElement.remove();
+                    inserted_image = null;
+                };
+
+                var imgContainer = document.createElement("div");
+                imgContainer.className = "attached-img-container";
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(removeBtn);
+                document.getElementById('image-preview').appendChild(imgContainer);
+                inserted_image = img;
+            };
+            reader.readAsDataURL(blob);
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    menuToggle.addEventListener('click', () => {
+        configContainer.classList.toggle('show');
+    });
+
+    // Add image attachment functionality
+    const attachImageBtn = document.getElementById('attach-image');
+    const imageInput = document.createElement('input');
+    imageInput.type = 'file';
+    imageInput.accept = 'image/*';
+    imageInput.style.display = 'none';
+    document.body.appendChild(imageInput);
+
+    attachImageBtn.addEventListener('click', function() {
+        imageInput.click();
+    });
+
+    imageInput.addEventListener('change', function(event) {
+        console.log(event);
+        handleImageSelection(event.target.files[0]);
+    });
+});
+
+document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!configContainer.contains(target) && !menuToggle.contains(target)) {
+        configContainer.classList.remove('show');
+    }
+});
+
+document.addEventListener('paste', function (event) {
+    var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+    console.log(items);
+    for (var index in items) {
+        var item = items[index];
+        if (item.kind === 'file') {
+            var blob = item.getAsFile();
+            handleImageSelection(blob);
+            break;  // Only handle the first image
+        }
+    }
+});
+
+function handleImageSelection(file) {
+    if (file && file.type.startsWith('image/')) {
+        var reader = new FileReader();
+        reader.onload = function (event) {
+            var img = document.createElement("img");
+            img.src = event.target.result;
+
+            if (inserted_image !== null) {
+                // Remove existing image
+                document.getElementById('image-preview').innerHTML = '';
+            }
+
+            img.style.maxWidth = '100px';
+            img.style.height = 'auto';
+            img.style.marginRight = '5px';
+            img.style.marginBottom = '5px';
+            img.style.borderRadius = '5px';
+
+            // Add remove button
+            var removeBtn = document.createElement("button");
+            removeBtn.innerHTML = "×";
+            removeBtn.className = "remove-img-btn";
+            removeBtn.onclick = function () {
+                this.parentElement.remove();
+                inserted_image = null;
+            };
+
+            var imgContainer = document.createElement("div");
+            imgContainer.className = "attached-img-container";
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(removeBtn);
+            document.getElementById('image-preview').appendChild(imgContainer);
+            inserted_image = img;
+        };
+        reader.readAsDataURL(file);
+    }
+}

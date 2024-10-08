@@ -5,22 +5,11 @@ from typing import Dict, List, cast
 
 import torch
 import transformers  # type: ignore
+from PIL import Image
 from pydantic import Field
 from transformers import AutoTokenizer  # type: ignore
 
 from .engine import Engine, SamplingParams
-
-SUPPORTED_MODELS = [
-    "meta-llama/Meta-Llama-3-8B-Instruct",
-    "unsloth/llama-3-8b-Instruct-bnb-4bit",
-    "unsloth/llama-3-8b-Instruct",
-    "DevsDoCode/LLama-3-8b-Uncensored",
-    "DevsDoCode/LLama-3-8b-Uncensored-4bit",
-    "IlyaGusev/saiga_llama3_8b",
-    "RichardErkhov/IlyaGusev_-_saiga_llama3_8b-4bits",
-    "RLHFlow/LLaMA3-iterative-DPO-final",
-]
-
 
 MODEL_IS_4bit = {
     "meta-llama/Meta-Llama-3-8B-Instruct": False,
@@ -79,14 +68,17 @@ class HFEngine(Engine[HFSamplingParams]):  # pylint: disable=invalid-name
     async def generate(
         self,
         messages: list[dict],
+        image: Image.Image | None = None,
         reply_prefix: str = "",
         sampling_params: HFSamplingParams = HFSamplingParams(),
     ):
         """Generate text from prompt"""
+        if image:
+            raise NotImplementedError("Image input not supported")
         streamer = transformers.TextIteratorStreamer(
             self.tokenizer, skip_prompt=True, skip_special_tokens=True  # type: ignore
         )
-        prompt = self.prepare_prompt(self.tokenizer, messages, reply_prefix)
+        prompt = self.prepare_prompt(self.tokenizer, messages)
         thread = Thread(
             target=self.pipeline,
             kwargs={

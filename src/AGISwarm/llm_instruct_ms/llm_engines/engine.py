@@ -2,8 +2,9 @@
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, Generic, List, TypeVar, cast
+from typing import AsyncGenerator, Dict, Generic, List, Optional, TypeVar, cast
 
+from PIL import Image
 from pydantic import BaseModel
 from transformers import PreTrainedTokenizerBase
 
@@ -27,27 +28,23 @@ class PreparePromptMixin:
 
     def prepare_prompt(
         self,
-        processor: PreTrainedTokenizerBase,
+        tokenizer: PreTrainedTokenizerBase,
         messages: List[Dict[str, str]],
-        reply_prefix: str = "",
     ):
         """Prepare prompt for model"""
-        reply_prefix += " "
-        messages.append({"role": "assistant", "content": reply_prefix.strip()})
         eot_uuid = "eot_" + str(uuid.uuid4())
         prompt = (
             cast(
                 str,
-                processor.apply_chat_template(
+                tokenizer.apply_chat_template(
                     messages,
                     tokenize=False,
-                    # continue_final_message=True,
                     add_generation_prompt=False,
                 ),
-            )
+            ).rstrip()
             + eot_uuid
         )
-        prompt = prompt.replace(processor.eos_token + eot_uuid, "")
+        prompt = prompt.replace(tokenizer.eos_token + eot_uuid, "")
         prompt = prompt.replace(eot_uuid, "")
         return prompt
 
@@ -57,16 +54,22 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
+    image: Dict[str, Image.Image | None]
+    image_prompt_enabled: bool
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     async def __call__(
         self,
         conversation_id: str,
         prompt: str,
         system_prompt: str,
         reply_prefix: str,
+        image: Optional[Image.Image],
         sampling_params: _SamplingParams_contra,
-    ):
+    ) -> AsyncGenerator[str, None]:
+        if image:
+            prompt = "<image>\n" + prompt if image else prompt
+            self.image[conversation_id] = image
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
         if system_prompt != "":
@@ -77,9 +80,11 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
                 }
             )
         self.conversations[conversation_id].append({"role": "user", "content": prompt})
+
         reply: str = ""
         async for response in self.generate(
             self.conversations[conversation_id],
+            self.image[conversation_id],
             reply_prefix,
             sampling_params,
         ):
@@ -94,6 +99,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     async def generate(
         self,
         messages: List[Dict[str, str]],
+        image: Optional[Image.Image],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
     ):
@@ -106,19 +112,33 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
     """Concurrent engine protocol"""
 
     conversations: Dict[str, List[Dict[str, str]]]
+    image: Dict[str, Image.Image | None]
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     async def __call__(
         self,
         conversation_id: str,
         prompt: str,
         system_prompt: str,
         reply_prefix: str,
+        image: Optional[Image.Image],
         sampling_params: _SamplingParams_contra,
         task_id: str,
     ):
+        reply_prefix = (reply_prefix + " ").strip()
         if conversation_id not in self.conversations:
             self.conversations[conversation_id] = []
+            self.image[conversation_id] = None
+        if image:
+            prompt = "<image>\n" + prompt if image else prompt
+            self.image[conversation_id] = image
+            for message in self.conversations[conversation_id]:
+                if message["role"] == "user":
+                    message["content"] = message["content"].replace(
+                        "<image>", "<seen_image>"
+                    )
+        else:
+            self.image[conversation_id] = None
         if system_prompt != "":
             self.conversations[conversation_id].append(
                 {
@@ -127,21 +147,28 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
                 }
             )
         self.conversations[conversation_id].append({"role": "user", "content": prompt})
-        reply: str = ""
-        async for response in self.generate(
-            self.conversations[conversation_id], reply_prefix, sampling_params, task_id
-        ):
-            reply += response
-            yield response
         self.conversations[conversation_id].append(
-            {"role": "assistant", "content": reply}
+            {"role": "assistant", "content": reply_prefix}
         )
-        yield ""
+        try:
+            async for response in self.generate(
+                self.conversations[conversation_id],
+                self.image[conversation_id],
+                reply_prefix,
+                sampling_params,
+                task_id,
+            ):
+                self.conversations[conversation_id][-1]["content"] += response
+                yield response
+        finally:
+            yield ""
 
     @abstractmethod
+    # pylint: disable=too-many-positional-arguments
     async def generate(
         self,
         messages: List[Dict[str, str]],
+        image: Optional[Image.Image],
         reply_prefix: str,
         sampling_params: _SamplingParams_contra,
         task_id: str,
