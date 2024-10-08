@@ -57,7 +57,7 @@ class Engine(Generic[_SamplingParams_contra], PreparePromptMixin):
     image: Dict[str, Image.Image | None]
     image_prompt_enabled: bool
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     async def __call__(
         self,
         conversation_id: str,
@@ -114,7 +114,7 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
     conversations: Dict[str, List[Dict[str, str]]]
     image: Dict[str, Image.Image | None]
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     async def __call__(
         self,
         conversation_id: str,
@@ -164,6 +164,7 @@ class ConcurrentEngine(Generic[_SamplingParams_contra], PreparePromptMixin):
             yield ""
 
     @abstractmethod
+    # pylint: disable=too-many-positional-arguments
     async def generate(
         self,
         messages: List[Dict[str, str]],

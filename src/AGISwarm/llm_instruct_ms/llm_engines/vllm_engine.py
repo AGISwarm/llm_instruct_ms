@@ -70,7 +70,7 @@ class VLLMEngine(ConcurrentEngine[VLLMSamplingParams]):
             truncate_prompt_tokens=True,
         )
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
     async def generate(
         self,
         messages: List[Dict[str, str]],

@@ -21,7 +21,8 @@ class LlamaCppSamplingParams(SamplingParams):
 class LlamaCppEngine(Engine[LlamaCppSamplingParams]):
     """LLM Instruct Model Inference"""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
+    def __init__(
         self,
         hf_model_name: str,
         tokenizer_name: str | None,
