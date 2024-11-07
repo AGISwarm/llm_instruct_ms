@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  llm_instruct_ms:
+    network_mode: "host"
+    image: llm_instruct_ms
+    volumes:
+      - ./config/config.yaml:/code/config/config.yaml
+    ports:
+      - "8000:8000"  # Adjust this port mapping as needed
+    environment:
+      - PYTHONUNBUFFERED=1  # This ensures Python output is sent straight to the container log
+    # If you need to specify a command to run, uncomment and adjust the next line
+    # command: python your_script.py
