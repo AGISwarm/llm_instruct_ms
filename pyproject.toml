@@ -18,19 +18,12 @@ dependencies = [
     "uvicorn~=0.29.0",
     "pydantic~=2.9.0",
     "hydra-core~=1.3.2",
-    "AGISwarm.asyncio_queue_manager",
+    "AGISwarm.asyncio-queue-manager@git+https://github.com/AGISwarm/asyncio-queue-manager.git#egg=v0.4.0",
+    "huggingface_hub[cli]",
+    "vllm==0.6.3.post1",
+    "jinja2"
 ]
 [project.optional-dependencies]
-vllm = ["vllm==0.6.2"]
-transformers = ["transformers"]
-llama-cpp = ["llama_cpp_python"]
-backends = [
-    "AGISwarm.llm_instruct_ms[transformers]",
-    "AGISwarm.llm_instruct_ms[vllm]",
-    "AGISwarm.llm_instruct_ms[llama_cpp]",
-]
-GUI = ["jinja2"]
-
 
 test = ['pytest~=8.2.1']
 analyze = [
@@ -46,8 +39,6 @@ publish = ['twine']
 all = [
     'AGISwarm.llm_instruct_ms[test]',
     'AGISwarm.llm_instruct_ms[analyze]',
-    'AGISwarm.llm_instruct_ms[backends]',
-    'AGISwarm.llm_instruct_ms[GUI]',
 ]
 
 
